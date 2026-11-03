@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="仕入れマップ">
+<meta name="theme-color" content="#8a5a2b">
+<meta name="app-version" content="202611032217">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="apple-touch-icon" href="./icon-180.png">
+<link rel="icon" href="./icon-192.png">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}
+#updBar{position:fixed;left:16px;right:16px;top:calc(12px + env(safe-area-inset-top,0px));z-index:50;background:#8a5a2b;color:#fff;border-radius:12px;padding:10px 14px;font:15px -apple-system,system-ui,sans-serif;display:flex;justify-content:space-between;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+#updBar button{font:inherit;font-weight:700;color:#8a5a2b;background:#fff;border:0;border-radius:8px;padding:6px 12px}</style>
+<title>仕入れマップ</title>
+<link rel="stylesheet" href="./leaflet.css">
+</head><body><style>
+/* Layout: phone app. 近く(現在地から近い順) を最初の画面に。地図・店舗・履歴・設定。詳細はボトムシート。 */
+:root{
+  --bg:#f6f3ee; --surface:#ffffff; --fg:#241c14; --muted:#75685a; --line:#e4ddd3;
+  --accent:#8a5a2b; --accent-fg:#ffffff; --accent-soft:#f1e6d8;
+  --ok:#1f6f5b; --ok-soft:#e3f0eb; --warn:#9a6700; --warn-soft:#fff3d6; --danger:#b3261e; --danger-soft:#fde8e6;
+  --chip:#ece6dd; --shadow:0 -8px 30px rgba(40,25,10,.18);
+  --font-body:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic UI",system-ui,sans-serif;
+  --font-num:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#171310; --surface:#211c17; --fg:#f1ebe3; --muted:#a69786; --line:#352c24;
+  --accent:#d9a46b; --accent-fg:#1e1309; --accent-soft:#3a2b1c;
+  --ok:#5fbf9f; --ok-soft:#1d3a31; --warn:#e8b64a; --warn-soft:#3a2e12; --danger:#ff8a80; --danger-soft:#3d1f1c;
+  --chip:#2b241d; --shadow:0 -8px 30px rgba(0,0,0,.5); color-scheme:dark } }
+:root[data-theme="dark"]{
+  --bg:#171310; --surface:#211c17; --fg:#f1ebe3; --muted:#a69786; --line:#352c24;
+  --accent:#d9a46b; --accent-fg:#1e1309; --accent-soft:#3a2b1c;
+  --ok:#5fbf9f; --ok-soft:#1d3a31; --warn:#e8b64a; --warn-soft:#3a2e12; --danger:#ff8a80; --danger-soft:#3d1f1c;
+  --chip:#2b241d; --shadow:0 -8px 30px rgba(0,0,0,.5); color-scheme:dark }
+
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:16px;line-height:1.5;-webkit-text-size-adjust:100%;-webkit-tap-highlight-color:transparent;overscroll-behavior-y:none}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--surface)}
+*{box-sizing:border-box}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;touch-action:manipulation}
+button:active{transform:scale(.97);transition:transform 100ms ease-out}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,textarea{font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%;font-size:16px}
+textarea{min-height:100px;resize:vertical;line-height:1.45}
+.num{font-family:var(--font-num);font-variant-numeric:tabular-nums}
+h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
+.muted{color:var(--muted)} .small{font-size:13px}
+.app{height:100%;display:flex;flex-direction:column}
+.hdr{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:var(--surface);border-bottom:1px solid var(--line);padding-block:12px 10px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:flex;align-items:center;justify-content:space-between;gap:10px}
+.hdr h1{font-size:20px} .hdr .sub{font-size:13px;color:var(--muted);margin-top:2px}
+.hdrbtn{min-height:40px;padding:0 14px;border-radius:999px;background:var(--accent);color:var(--accent-fg);font-weight:700;font-size:14px;flex:0 0 auto;display:inline-flex;align-items:center;gap:6px}
+.hdrbtn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.main{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;min-height:0;padding-block:12px 24px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.main.flush{padding:0;overflow:hidden;display:flex;flex-direction:column}
+.view[hidden]{display:none}
+.tabs{display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line);padding-top:6px;padding-bottom:calc(6px + env(safe-area-inset-bottom,0px));padding-left:max(8px,env(safe-area-inset-left,0px));padding-right:max(8px,env(safe-area-inset-right,0px))}
+.tab{display:flex;flex-direction:column;align-items:center;gap:2px;min-height:48px;padding:4px 0;color:var(--muted);font-size:11px;border-radius:10px}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-selected="true"]{color:var(--accent);font-weight:700}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none} .chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;min-height:36px;padding:0 14px;border-radius:999px;background:var(--chip);font-size:14px;font-weight:500;white-space:nowrap}
+.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+.toolbar{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.search{position:relative} .search input{padding-left:38px}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round}
+.list{display:flex;flex-direction:column;gap:8px;margin:0;padding:0;list-style:none}
+.tag{font-size:11px;padding:1px 8px;border-radius:999px;background:var(--chip);color:var(--muted);white-space:nowrap}
+.tag.brand{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.tag.open{background:var(--ok-soft);color:var(--ok);font-weight:700}
+.tag.closing{background:var(--warn-soft);color:var(--warn);font-weight:700}
+.tag.closed,.tag.before{background:var(--chip);color:var(--muted)}
+.tag.over{background:var(--danger-soft);color:var(--danger);font-weight:700}
+.tag.soon{background:var(--warn-soft);color:var(--warn);font-weight:700}
+.tag.today{background:var(--ok-soft);color:var(--ok);font-weight:700}
+.tag.custom{border:1px dashed var(--line);background:transparent}
+.near{display:grid;grid-template-columns:58px 1fr auto;gap:4px 10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-height:72px}
+.near .km{font-family:var(--font-num);font-size:18px;font-weight:600;line-height:1.1;text-align:center}
+.near .km small{display:block;font-size:11px;font-weight:400;color:var(--muted)}
+.near .body{min-width:0;text-align:left}
+.near .nm{font-weight:700;overflow-wrap:anywhere;line-height:1.3}
+.near .ln{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:3px;font-size:12px;color:var(--muted)}
+.near .acts{display:flex;flex-direction:column;gap:6px}
+.near .ib{width:44px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);font-size:12px;font-weight:700}
+.near .ib svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.near .ib.done{background:var(--ok-soft);color:var(--ok)}
+.card{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-height:64px}
+.card .name{font-weight:700;overflow-wrap:anywhere} .card .addr{grid-column:1;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
+.card .meta{grid-column:2;grid-row:1/3;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.card .cnt{font-size:22px;font-weight:500;line-height:1} .card .cnt small{font-size:12px;font-weight:400;color:var(--muted);margin-left:2px}
+.card .last{font-size:12px;color:var(--muted)} .card .tagrow{grid-column:1;display:flex;gap:6px;flex-wrap:wrap;margin-top:2px}
+.empty{padding:28px 12px;text-align:center;color:var(--muted);font-size:14px}
+.section{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px}
+.section h2{font-size:15px;margin-bottom:8px} .section p{margin:0 0 8px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:12px;background:var(--chip);font-weight:700;font-size:15px;text-decoration:none;color:var(--fg)}
+.btn.primary{background:var(--accent);color:var(--accent-fg)} .btn.soft{background:var(--accent-soft);color:var(--accent)}
+.btn.danger{background:var(--danger-soft);color:var(--danger)} .btn.warn{background:var(--warn-soft);color:var(--warn)} .btn.ok{background:var(--ok);color:#fff}
+.btn.block{width:100%} .btn.big{min-height:56px;font-size:17px} .btn:disabled{opacity:.55;cursor:default}
+.btn svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.note{font-size:13px;color:var(--muted);line-height:1.5}
+.banner{background:var(--warn-soft);color:var(--warn);border-radius:12px;padding:12px 14px;font-size:14px;margin-bottom:12px;display:flex;flex-direction:column;gap:8px}
+.toast{position:fixed;left:50%;bottom:calc(92px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);opacity:0;background:var(--fg);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;font-weight:500;pointer-events:none;z-index:1200;transition:transform .25s cubic-bezier(.2,.8,.2,1),opacity .25s;max-width:calc(100% - 32px);text-align:center}
+.toast.show{transform:translateX(-50%) translateY(0);opacity:1}
+.plan{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;flex-wrap:wrap}
+.plan .chk{width:44px;height:44px;flex:0 0 44px;border-radius:12px;border:2px solid var(--line);display:grid;place-items:center}
+.plan .chk svg{width:22px;height:22px;stroke:#fff;fill:none;stroke-width:3;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.plan.done .chk{background:var(--ok);border-color:var(--ok)} .plan.done .chk svg{opacity:1} .plan.done .pname{text-decoration:line-through;color:var(--muted)}
+.plan.next{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent-soft)}
+.plan .body{flex:1;min-width:0;text-align:left} .plan .step{font-size:11px;font-weight:700;color:var(--accent)} .plan .pname{font-weight:700;overflow-wrap:anywhere} .plan .paddr{font-size:12px;color:var(--muted)}
+.plan .map{width:44px;height:44px;flex:0 0 44px;border-radius:12px;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center}
+.plan .map svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.plan .more{width:36px;height:44px;display:grid;place-items:center;color:var(--muted);font-size:20px}
+.strip{flex-basis:100%;display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 2px;border-top:1px dashed var(--line);margin-top:6px} .strip .btn{min-height:36px;font-size:13px;padding:0 10px}
+.order{font-family:var(--font-num);font-size:12px;color:var(--muted);width:16px;text-align:center}
+.routehead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin:18px 2px 8px} .routehead h2{font-size:17px}
+.routehead button{color:var(--accent);font-weight:700;font-size:14px;min-height:36px;padding:0 6px}
+.routebar{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px} .routebar .btn{padding:0 10px;font-size:14px}
+.hist{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.hrow{display:flex;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid var(--line);min-height:52px} .hrow:first-child{border-top:0}
+.hrow .date{font-family:var(--font-num);font-size:14px;flex:0 0 auto} .hrow .who{flex:1;min-width:0;overflow-wrap:anywhere;text-align:left}
+.hrow .del{min-width:44px;min-height:40px;padding:0 10px;border-radius:10px;color:var(--danger);font-size:13px;font-weight:700} .hrow .del.confirm{background:var(--danger-soft)}
+.month{font-size:12px;color:var(--muted);letter-spacing:.06em;margin:14px 4px 6px;font-weight:700} .month:first-child{margin-top:0}
+#view-chizu{flex:1;display:flex;flex-direction:column;min-height:0}
+.maptools{padding:10px max(16px,env(safe-area-inset-right,0px)) 6px max(16px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px;background:var(--bg)}
+#map{flex:1;min-height:240px;background:#ebe6dd;z-index:0}
+.mapfoot{padding:8px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));background:var(--surface);border-top:1px solid var(--line);display:flex;flex-direction:column;gap:6px;max-height:36%;overflow-y:auto}
+.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--muted)} .legend span{display:inline-flex;align-items:center;gap:4px}
+.dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--ok);background:var(--ok);display:inline-block} .dot.old{border-color:var(--warn);background:var(--warn)} .dot.none{border-color:var(--muted);background:var(--surface)} .dot.me{border-color:#2b5fb3;background:#2b5fb3}
+.pin{width:28px;height:28px;border-radius:50%;border:3px solid var(--ok);background:var(--ok);color:#fff;display:grid;place-items:center;font:700 11px var(--font-num);box-shadow:0 1px 5px rgba(0,0,0,.35)}
+.pin.old{border-color:var(--warn);background:var(--warn)} .pin.none{border-color:var(--muted);background:var(--surface);color:var(--fg)} .pin.closed{opacity:.55}
+.pin.me{width:18px;height:18px;border:3px solid #fff;background:#2b5fb3;box-shadow:0 0 0 3px rgba(43,95,179,.35)}
+.leaflet-container{font-family:var(--font-body)} .leaflet-popup-content-wrapper{border-radius:12px;background:var(--surface);color:var(--fg)} .leaflet-popup-tip{background:var(--surface)} .leaflet-popup-content{margin:10px 12px;font-size:14px;line-height:1.4}
+.pop b{font-size:15px} .pop .row{margin-top:8px} .pop .btn{min-height:36px;font-size:13px;padding:0 10px}
+.scrim{position:fixed;inset:0;background:rgba(20,12,5,.4);z-index:1000;opacity:0;pointer-events:none;transition:opacity .25s} .scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:1100;background:var(--surface);border-radius:20px 20px 0 0;box-shadow:var(--shadow);max-height:calc(100% - 40px - env(safe-area-inset-top,0px));display:flex;flex-direction:column;transform:translateY(105%);transition:transform .32s cubic-bezier(.2,.8,.2,1);will-change:transform}
+.sheet.open{transform:translateY(0)} .grab{width:40px;height:5px;border-radius:3px;background:var(--line);margin:8px auto 0;flex:0 0 auto}
+.sheet .inner{overflow-y:auto;-webkit-overflow-scrolling:touch;padding-block:10px 20px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}
+.sheet h2{font-size:21px;overflow-wrap:anywhere} .sheet .addr{color:var(--muted);font-size:14px;margin:2px 0 8px;overflow-wrap:anywhere}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0} .stat{background:var(--bg);border-radius:12px;padding:10px 12px} .stat .k{font-size:12px;color:var(--muted)} .stat .v{font-family:var(--font-num);font-size:18px;font-weight:500}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px} .field label{font-size:13px;color:var(--muted)}
+.hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:16px 0 8px} .hd h3{font-size:14px;color:var(--muted);font-weight:700;letter-spacing:.04em}
+.close{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:10px;width:36px;height:36px;border-radius:50%;background:var(--chip);display:grid;place-items:center} .close svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
+.datewrap{display:flex;gap:8px;align-items:center;flex-wrap:wrap} .datewrap input[type=date]{width:auto;flex:1;min-width:150px} .datewrap .btn{flex:0 0 auto}
+.kv{display:flex;justify-content:space-between;gap:10px;font-size:14px;padding:6px 0;border-top:1px solid var(--line)} .kv:first-of-type{border-top:0}
+.linkish{color:var(--accent);font-weight:700;font-size:14px;min-height:36px;padding:0 6px}
+.hoursbox{background:var(--bg);border-radius:12px;padding:10px 12px;font-size:14px;margin:6px 0 10px}
+@media (prefers-reduced-motion: reduce){ .sheet,.scrim,.toast,button{transition:none} }
+</style>
+
+<div class="app">
+  <header class="hdr">
+    <div><h1 id="hdrTitle">近く</h1><div class="sub" id="hdrSub">読み込み中</div></div>
+    <button class="hdrbtn" id="btnLocate"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg>現在地</button>
+  </header>
+  <main class="main" id="main">
+
+    <section class="view" id="view-chikaku">
+      <div id="locBanner"></div>
+      <div class="toolbar">
+        <div class="chips" id="nearFilters"></div>
+      </div>
+      <div class="list" id="nearList"></div>
+      <div class="row" style="margin-top:12px"><button class="btn soft block" id="btnQuickPlan">近い順に5店で今日の予定を組む</button></div>
+      <div class="routehead" id="routehead" hidden><h2 id="routeTitle">今日の予定</h2><button id="btnReplan">消す</button></div>
+      <div class="routebar" id="routebar" hidden><button class="btn" id="btnSuggest">近い順に並べ替え</button><a class="btn primary" id="btnNavi" href="#" target="_blank" rel="noopener">Googleマップで案内</a></div>
+      <div class="list" id="planList"></div>
+    </section>
+
+    <section class="view" id="view-chizu" hidden>
+      <div class="maptools"><div class="chips" id="mapChips"></div></div>
+      <div id="map"></div>
+      <div class="mapfoot" id="mapFoot"></div>
+    </section>
+
+    <section class="view" id="view-tenpo" hidden>
+      <div class="toolbar">
+        <div class="search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg><input type="search" id="q" placeholder="店名・住所で探す" autocomplete="off"></div>
+        <div class="chips" id="prefChips"></div>
+        <div class="chips" id="sortChips"></div>
+      </div>
+      <ul class="list" id="storeList"></ul>
+    </section>
+
+    <section class="view" id="view-rireki" hidden><div id="histBody"></div></section>
+
+    <section class="view" id="view-settei" hidden>
+      <div class="section">
+        <h2>店舗データ</h2>
+        <div class="kv"><span>ブックオフ店舗</span><span class="num" id="statStores">—</span></div>
+        <div class="kv"><span>データ取得日</span><span class="num" id="statFetched">—</span></div>
+        <div class="kv"><span>自分で足した店</span><span class="num" id="statCustom">0</span></div>
+        <div class="kv"><span>訪問記録</span><span class="num" id="statVisits">0</span></div>
+        <p class="note" style="margin-top:8px">店舗・住所・営業時間はブックオフ公式サイトの店舗検索から取ったものです。営業時間は変わることがあるので、公式ページ（店舗詳細の「公式ページ」）も確認を。臨時休業・祝日は反映していません。</p>
+      </div>
+      <div class="section">
+        <h2>出発地（位置情報が使えない時の起点）</h2>
+        <input id="homeAddr" placeholder="例：岐阜県岐阜市○○1-1" autocomplete="off">
+        <div class="row" style="margin-top:8px"><button class="btn" id="btnHomeSave">保存して位置を取る</button><span class="note" id="homeStat"></span></div>
+      </div>
+      <div class="section">
+        <h2>店を足す（ブックオフ以外・個人店など）</h2>
+        <div class="field"><label for="cName">店名</label><input id="cName" autocomplete="off"></div>
+        <div class="field"><label for="cAddr">住所</label><input id="cAddr" autocomplete="off"></div>
+        <div class="field"><label for="cHours">営業時間（例 10:00～20:00）</label><input id="cHours" autocomplete="off"></div>
+        <div class="row"><button class="btn primary" id="btnAddCustom">追加</button><span class="note" id="customMsg"></span></div>
+      </div>
+      <div class="section">
+        <h2>非表示にした店</h2>
+        <div id="hiddenList" class="note">なし</div>
+      </div>
+      <div class="section">
+        <h2>控え（バックアップ）</h2>
+        <p class="note">訪問記録・足した店・設定はこのiPhoneの中だけ。下の文字列をメモに控えておけば戻せます。</p>
+        <div class="row"><button class="btn" id="btnExport">控えを作る</button><button class="btn" id="btnCopyExport" hidden>コピー</button></div>
+        <textarea id="exportText" hidden readonly style="margin-top:8px;font-family:var(--font-num);font-size:12px"></textarea>
+        <div class="hd"><h3>控えから戻す</h3></div>
+        <textarea id="restoreText" placeholder="控えの文字列をここに貼る" style="min-height:70px"></textarea>
+        <div class="row" style="margin-top:8px"><button class="btn warn" id="btnRestore">貼った内容で置き換える</button></div>
+        <div id="restoreMsg" class="note" style="margin-top:6px"></div>
+      </div>
+      <div class="section">
+        <h2>診断</h2>
+        <div class="kv"><span>アプリの版</span><span class="num" id="statVer">—</span></div>
+        <div class="kv"><span>最新の版の確認</span><button class="linkish" id="btnCheckUpdate">今すぐ確認</button></div>
+        <div class="kv"><span>位置情報</span><span id="statLoc">—</span></div>
+      </div>
+    </section>
+  </main>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-view="chikaku" aria-selected="true"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="12" cy="12" r="8"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2"/></svg>近く</button>
+    <button class="tab" role="tab" data-view="chizu" aria-selected="false"><svg viewBox="0 0 24 24"><path d="m3 6 6-2 6 2 6-2v14l-6 2-6-2-6 2z"/><path d="M9 4v14M15 6v14"/></svg>地図</button>
+    <button class="tab" role="tab" data-view="tenpo" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 10l1.5-5h13L20 10"/><path d="M4 10h16v10H4z"/><path d="M9 20v-5h6v5"/></svg>店舗</button>
+    <button class="tab" role="tab" data-view="rireki" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>履歴</button>
+    <button class="tab" role="tab" data-view="settei" aria-selected="false"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="9" cy="17" r="2"/></svg>設定</button>
+  </nav>
+</div>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shName"><div class="grab"></div><button class="close" id="shClose" aria-label="閉じる"><svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6 6 18"/></svg></button><div class="inner" id="sheetInner"></div></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script src="./leaflet.js"></script>
+<script>
+(function(){
+  'use strict';
+  const KEY='sedori-map-v1', STORES_CACHE='sedori-map-stores';
+  const $=(s,el=document)=>el.querySelector(s);
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+  const pad=n=>String(n).padStart(2,'0');
+  const ymd=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  const todayStr=()=>ymd(new Date());
+  const fmt=s=>{ if(!s) return '—'; const [y,m,d]=s.split('-'); return `${y}/${m}/${d}`; };
+  const fmtShort=s=>{ if(!s) return '—'; const [,m,d]=s.split('-'); return `${+m}/${+d}`; };
+  const dow=s=>'日月火水木金土'[new Date(s+'T00:00:00').getDay()];
+  const daysAgo=s=>{ if(!s) return null; const a=new Date(s+'T00:00:00'), b=new Date(todayStr()+'T00:00:00'); return Math.round((b-a)/86400000); };
+  const hasGeo=c=>c&&typeof c.lat==='number'&&typeof c.lng==='number';
+  const z2h=t=>String(t||'').replace(/[０-９]/g,ch=>String.fromCharCode(ch.charCodeAt(0)-0xFEE0)).replace(/[－‐―]/g,'-').replace(/　/g,' ').replace(/：/g,':');
+  const kmTxt=k=>k==null?'':k<10?k.toFixed(1):String(Math.round(k));
+
+  // ---- 状態（端末内） ----
+  let storageOk=true;
+  function load(){ try{ const raw=localStorage.getItem(KEY); if(raw){ const s=JSON.parse(raw); if(s&&Array.isArray(s.visits)) return s; } }catch(e){ storageOk=false; } return null; }
+  function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){ storageOk=false; toast('保存できませんでした'); } }
+  let state=load()||{visits:[],custom:[],hidden:[],snooze:{},home:null,prefs:{books:true,radius:30,pref:''},plan:{date:todayStr(),items:[]}};
+  state.visits=state.visits||[]; state.custom=state.custom||[]; state.hidden=state.hidden||[]; state.snooze=state.snooze||{}; state.prefs=state.prefs||{books:true,radius:30,pref:''}; state.plan=state.plan||{date:todayStr(),items:[]};
+
+  // ---- 店舗データ ----
+  let stores=[], storesMeta={fetchedAt:'',count:0};
+  function applyStores(j){ storesMeta={fetchedAt:j.fetchedAt||'',count:(j.stores||[]).length}; stores=(j.stores||[]).filter(s=>!/閉店/.test(s.brand||'')&&hasGeo(s)).map(s=>({...s,builtin:true})); }
+  async function loadStores(){
+    try{ const c=localStorage.getItem(STORES_CACHE); if(c){ applyStores(JSON.parse(c)); } }catch(e){}
+    try{ const r=await fetch('./data/stores.json',{cache:'no-cache'}); if(r.ok){ const j=await r.json(); applyStores(j); try{ localStorage.setItem(STORES_CACHE,JSON.stringify(j)); }catch(e){} } }catch(e){}
+  }
+  const isBook=s=>!s.builtin||/BOOKOFF/.test(s.brand||'')||/BOOKOFF/.test(s.name||'');
+  const all=()=>[...stores,...state.custom];
+  const byId=id=>all().find(s=>s.id===id);
+  const visible=()=>all().filter(s=>!state.hidden.includes(s.id)&&(!state.prefs.books||isBook(s)));
+  const visitsOf=id=>state.visits.filter(v=>v.storeId===id).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
+  const lastVisit=id=>visitsOf(id)[0]?.date||null;
+  const visitedToday=id=>state.visits.some(v=>v.storeId===id&&v.date===todayStr());
+  const gap=s=>{ const sn=state.snooze[s.id]; if(sn&&sn>todayStr()) return {k:'snoozed',d:-1,label:`${fmtShort(sn)}まで寝かせ中`,cls:''}; const l=lastVisit(s.id); if(!l) return {k:'never',d:9999,label:'未訪問',cls:''}; const d=daysAgo(l); if(d>=30) return {k:'over',d,label:`${d}日空き`,cls:'over'}; if(d>=14) return {k:'soon',d,label:`${d}日空き`,cls:'soon'}; return {k:'ok',d,label:d===0?'今日行った':`${d}日前`,cls:'today'}; };
+  const gapRank={never:0,over:1,soon:2,ok:3,snoozed:4};
+
+  // ---- 営業時間 ----
+  function parseHours(h){ const m=z2h(h).match(/(\d{1,2}):(\d{2})\s*[～~\-〜]\s*(翌)?(\d{1,2}):(\d{2})/); if(!m) return null; let o=+m[1]*60+ +m[2], c=+m[4]*60+ +m[5]; if(m[3]||c<=o) c+=1440; return {o,c}; }
+  const fmtMin=m=>`${m>=1440?'翌':''}${pad(Math.floor((m%1440)/60))}:${pad(m%60)}`;
+  function openStatus(s){
+    const h=s.hours||''; const p=parseHours(h); if(!p) return {k:'unknown',label:h?h:'営業時間 不明',short:h||'時間不明'};
+    const d=new Date(); let now=d.getHours()*60+d.getMinutes(); if(now<p.o&&now+1440<p.c) now+=1440;
+    if(now>=p.o&&now<p.c){ const rem=p.c-now; return rem<=60?{k:'closing',label:`あと${rem}分で閉店（${fmtMin(p.c)}）`,short:`あと${rem}分`}:{k:'open',label:`営業中 ・ ${fmtMin(p.c)}まで`,short:`〜${fmtMin(p.c)}`}; }
+    if(now<p.o){ const w=p.o-now; return {k:'before',label:`${fmtMin(p.o)}に開店（あと${w>=60?Math.floor(w/60)+'時間':''}${w%60?w%60+'分':''}）`,short:`${fmtMin(p.o)}開店`}; }
+    return {k:'closed',label:`本日は閉店（${fmtMin(p.o)}〜${fmtMin(p.c)}）`,short:'閉店'};
+  }
+
+  // ---- 位置 ----
+  const R=6371; const dist=(a,b)=>{ const dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180; const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
+  function orderStops(start,pts){ if(pts.length<2) return pts.slice(); let rest=pts.slice(),out=[],cur=start; if(!cur){ out.push(rest.shift()); cur=out[0]; } while(rest.length){ let bi=0,bd=Infinity; rest.forEach((p,i)=>{ const d=dist(cur,p); if(d<bd){bd=d;bi=i;} }); cur=rest.splice(bi,1)[0]; out.push(cur); } const path=start?[start,...out]:out; let imp=true,g=0; while(imp&&g++<50){ imp=false; for(let i=1;i<path.length-1;i++) for(let k=i+1;k<path.length;k++){ const a=path[i-1],b=path[i],c=path[k],d=path[k+1]; const bef=dist(a,b)+(d?dist(c,d):0), aft=dist(a,c)+(d?dist(b,d):0); if(aft+1e-9<bef){ const seg=path.slice(i,k+1).reverse(); path.splice(i,k-i+1,...seg); imp=true; } } } return start?path.slice(1):path; }
+  let me=null, meAt=0, locState='idle', locErr='';
+  const currentPos=(force)=>new Promise(res=>{ if(!force&&me&&Date.now()-meAt<60000) return res(me); if(!navigator.geolocation){ locState='none'; return res(null); } locState='asking'; let done=false; const fin=v=>{ if(!done){ done=true; res(v); } }; setTimeout(()=>{ if(!done){ locState=me?'stale':'timeout'; fin(me); } },8000); try{ navigator.geolocation.getCurrentPosition(p=>{ me={lat:p.coords.latitude,lng:p.coords.longitude,name:'現在地'}; meAt=Date.now(); locState='ok'; fin(me); },e=>{ locState='denied'; locErr=e&&e.message||''; fin(me); },{timeout:7500,maximumAge:30000,enableHighAccuracy:true}); }catch(e){ locState='error'; fin(me); } });
+  const home=()=>state.home&&hasGeo(state.home)?{lat:state.home.lat,lng:state.home.lng,name:'出発地'}:null;
+  const origin=()=>me||home();
+  const mapsUrl=s=>'https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(s.address?`${s.name} ${s.address}`:`${s.lat},${s.lng}`);
+  function naviUrl(stops,org){ const p=s=>s.address?s.address:`${s.lat},${s.lng}`; const u=new URL('https://www.google.com/maps/dir/?api=1'); u.searchParams.set('travelmode','driving'); if(org&&org.name==='出発地') u.searchParams.set('origin',`${org.lat},${org.lng}`); u.searchParams.set('destination',p(stops[stops.length-1])); if(stops.length>1) u.searchParams.set('waypoints',stops.slice(0,-1).map(p).join('|')); return u.toString(); }
+  const cleanAddr=a=>z2h(a).replace(/〒\s*\d{3}-?\d{4}/g,' ').replace(/(日本|Japan)[,、]?\s*/g,'').replace(/[,、]/g,' ').trim();
+  async function geocode(address){ const q=cleanAddr(address); if(!q) return null; for(const v of [q,q.replace(/\s+/g,''),(q.replace(/\s+/g,'').match(/^(.*?\d+(?:-\d+){0,2})/)||[])[1]].filter(Boolean)){ try{ const r=await fetch('https://msearch.gsi.go.jp/address-search/AddressSearch?q='+encodeURIComponent(v)); const j=await r.json(); if(Array.isArray(j)&&j[0]?.geometry?.coordinates){ const [lng,lat]=j[0].geometry.coordinates; return {lat,lng,title:j[0].properties?.title||''}; } }catch(e){} } return null; }
+
+  // ---- toast / tabs ----
+  let toastT; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('show'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('show'),2000); }
+  const VIEWS={chikaku:'近く',chizu:'地図',tenpo:'店舗',rireki:'履歴',settei:'設定'};
+  let view='chikaku';
+  function setView(v,push=true){ if(!VIEWS[v]) v='chikaku'; view=v; document.querySelectorAll('.view').forEach(el=>el.hidden=el.id!=='view-'+v); document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',String(b.dataset.view===v))); $('#main').classList.toggle('flush',v==='chizu'); if(push){ try{ if(location.hash!=='#'+v) history.replaceState(null,'','#'+v); }catch(e){} } $('#main').scrollTop=0; render(); }
+  document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
+  window.addEventListener('hashchange',()=>setView(location.hash.replace('#','')||'chikaku',false));
+  $('#btnLocate').addEventListener('click',async()=>{ $('#btnLocate').disabled=true; const p=await currentPos(true); $('#btnLocate').disabled=false; toast(p?'現在地を更新しました':'位置情報が取れませんでした'); render(); if(view==='chizu'&&map&&p) map.setView([p.lat,p.lng],12); });
+
+  function render(){
+    $('#hdrTitle').textContent=VIEWS[view]; $('#btnLocate').hidden=!(view==='chikaku'||view==='chizu'||view==='tenpo');
+    if(view==='chikaku') renderNear();
+    if(view==='chizu') renderMap();
+    if(view==='tenpo') renderStores();
+    if(view==='rireki'){ $('#hdrSub').textContent=`訪問記録 ${state.visits.length}件`; renderHist(); }
+    if(view==='settei'){ $('#hdrSub').textContent='店舗データ・出発地・控え'; renderSettings(); }
+  }
+
+  // ---- 近く ----
+  function withDist(list,org){ return list.map(s=>({s,km:org&&hasGeo(s)?dist(org,s):null})).sort((a,b)=>(a.km??1e9)-(b.km??1e9)); }
+  function statusTag(s){ const st=openStatus(s); return `<span class="tag ${st.k}">${esc(st.short)}</span>`; }
+  function renderNear(){
+    const org=origin(); const pr=state.prefs;
+    const lb=$('#locBanner'); lb.innerHTML='';
+    if(!me){ lb.innerHTML=`<div class="banner"><div>${locState==='denied'?'位置情報が許可されていません。iPhoneの設定 → Safari（またはホーム画面アプリ）→ 位置情報 を「許可」に。':locState==='asking'?'現在地を確認しています…':'現在地が取れていません。'}${home()?' 代わりに出発地から測っています。':''}</div><div class="row"><button class="btn warn" id="locRetry">現在地を取る</button></div></div>`; $('#locRetry').addEventListener('click',async()=>{ await currentPos(true); render(); }); }
+    $('#hdrSub').textContent=org?`${org.name}から近い順 ・ ${pr.books?'本がある店':'すべての店'}`:'現在地なし';
+    const f=$('#nearFilters'); f.innerHTML=[['books:1','本がある店'],['books:0','全部の店']].map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${String((k==='books:1')===!!pr.books)}">${l}</button>`).join('')+[10,30,100,0].map(r=>`<button class="chip" data-k="r:${r}" aria-pressed="${String(pr.radius===r)}">${r?r+'km以内':'全部'}</button>`).join('');
+    f.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{ const [k,v]=b.dataset.k.split(':'); if(k==='books') pr.books=v==='1'; else pr.radius=+v; save(); renderNear(); }));
+    let rows=withDist(visible(),org); if(pr.radius) rows=rows.filter(r=>r.km==null||r.km<=pr.radius); rows=rows.slice(0,40);
+    const list=$('#nearList');
+    if(!org){ list.innerHTML='<div class="empty">現在地か出発地が要ります。上の「現在地」を押すか、設定で出発地を入れてください。</div>'; }
+    else if(!rows.length){ list.innerHTML=`<div class="empty">${pr.radius?pr.radius+'km以内':'範囲内'}に店がありません。範囲を広げてください。</div>`; }
+    else list.innerHTML=rows.map(({s,km})=>{ const g=gap(s); const today=visitedToday(s.id);
+      return `<div class="near" data-id="${s.id}"><div class="km">${kmTxt(km)}<small>km</small></div>
+        <button class="body" data-act="open"><div class="nm">${esc(s.name)}</div><div class="ln">${statusTag(s)}<span class="num">${esc(s.hours||'')}</span>${s.builtin&&!/^BOOKOFF$/.test(s.brand)?`<span class="tag brand">${esc(s.brand.replace('BOOKOFF ',''))}</span>`:''}${!s.builtin?'<span class="tag custom">自分で追加</span>':''}<span class="tag ${g.cls}">${g.label}</span></div></button>
+        <div class="acts"><a class="ib" href="${mapsUrl(s)}" target="_blank" rel="noopener" aria-label="Googleマップ"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg></a><button class="ib ${today?'done':''}" data-act="visit">${today?'✓済':'行った'}</button></div></div>`; }).join('');
+    list.querySelectorAll('[data-act="open"]').forEach(b=>b.addEventListener('click',()=>openSheet(b.closest('.near').dataset.id)));
+    list.querySelectorAll('[data-act="visit"]').forEach(b=>b.addEventListener('click',()=>recordVisit(b.closest('.near').dataset.id)));
+    renderPlan();
+  }
+  function recordVisit(id,date){ const t=date||todayStr(); if(state.visits.some(v=>v.storeId===id&&v.date===t)){ toast(`${fmt(t)}は記録済みです`); return false; } state.visits.push({id:uid(),storeId:id,date:t,createdAt:Date.now()}); delete state.snooze[id]; if(state.plan.date===t){ const it=state.plan.items.find(i=>i.storeId===id); if(it) it.done=true; } save(); toast(t===todayStr()?'今日の訪問を記録しました':`${fmt(t)}を記録しました`); render(); return true; }
+
+  // ---- 今日の予定 ----
+  const planToday=()=>state.plan.date===todayStr()?state.plan.items.filter(i=>byId(i.storeId)):[];
+  let openRow=null, pendingHide=null;
+  async function quickPlan(){ const org=await currentPos()||home(); if(!org){ toast('現在地か出発地が要ります'); return; } const cands=withDist(visible().filter(s=>gap(s).k!=='snoozed'&&!visitedToday(s.id)),org).slice(0,12).map(r=>r.s); const pick=cands.slice(0,5); const ordered=orderStops(org,pick); state.plan={date:todayStr(),items:ordered.map(s=>({storeId:s.id,done:false})),startName:org.name,startPt:{lat:org.lat,lng:org.lng}}; save(); toast(`${org.name}から近い5店で組みました`); render(); setTimeout(()=>{ const el=$('#routehead'); if(el) $('#main').scrollTop=el.offsetTop-70; },50); }
+  $('#btnQuickPlan').addEventListener('click',quickPlan);
+  $('#btnReplan').addEventListener('click',()=>{ state.plan={date:todayStr(),items:[]}; openRow=null; save(); render(); });
+  $('#btnSuggest').addEventListener('click',async()=>{ const items=planToday(); const done=items.filter(i=>i.done), todo=items.filter(i=>!i.done); const org=await currentPos()||home(); const pts=todo.map(i=>byId(i.storeId)); const ordered=orderStops(org,pts).map(s=>todo.find(i=>i.storeId===s.id)); state.plan.items=[...done,...ordered]; state.plan.startName=org?org.name:''; state.plan.startPt=org?{lat:org.lat,lng:org.lng}:null; save(); render(); toast('近い順にしました'); });
+  function renderPlan(){
+    const items=planToday(); const list=$('#planList'); $('#routehead').hidden=!items.length; $('#routebar').hidden=!items.length; $('#btnQuickPlan').hidden=!!items.length;
+    if(!items.length){ list.innerHTML=''; return; }
+    const rem=items.filter(i=>!i.done).map(i=>byId(i.storeId)); if(rem.length){ $('#btnNavi').href=naviUrl(rem,state.plan.startName==='出発地'?home():null); $('#btnNavi').hidden=false; } else $('#btnNavi').hidden=true;
+    $('#routeTitle').textContent=`今日の予定 ${items.filter(i=>i.done).length}/${items.length}`;
+    let prev=state.plan.startPt||null; const nextIdx=items.findIndex(i=>!i.done), lastIdx=items.length-1;
+    list.innerHTML=items.map((i,idx)=>{ const s=byId(i.storeId); const km=prev?dist(prev,s):null; prev=s; const word=i.done?'済み':idx===nextIdx?'次はここ':idx===lastIdx?'最後に':'そのあと';
+      const strip=openRow===s.id?`<div class="strip">${!i.done?`<button class="btn" data-act="skip">今日は外す</button><button class="btn" data-act="snooze" data-days="14">2週間寝かせる</button>`:''}<button class="btn soft" data-act="first">ここから回る</button><button class="btn" data-act="up" ${idx===0?'disabled':''}>上へ</button><button class="btn" data-act="down" ${idx===lastIdx?'disabled':''}>下へ</button></div>`:'';
+      return `<div class="plan ${i.done?'done':''} ${idx===nextIdx?'next':''}" data-id="${s.id}"><span class="order">${idx+1}</span><button class="chk" data-act="done" aria-label="行った"><svg viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg></button>
+        <button class="body" data-act="open"><div class="step">${word}${km!=null?` <span class="num muted">・ ${kmTxt(km)}km</span>`:''}</div><div class="pname">${esc(s.name)}</div><div class="paddr">${statusTag(s)} ${esc(s.hours||'')}</div></button>
+        <a class="map" href="${mapsUrl(s)}" target="_blank" rel="noopener" aria-label="Googleマップ"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg></a><button class="more" data-act="more">…</button>${strip}</div>`; }).join('');
+    list.querySelectorAll('[data-act="done"]').forEach(b=>b.addEventListener('click',()=>{ const id=b.closest('.plan').dataset.id; const it=state.plan.items.find(i=>i.storeId===id); if(!it.done){ it.done=true; if(!visitedToday(id)) state.visits.push({id:uid(),storeId:id,date:todayStr(),createdAt:Date.now()}); delete state.snooze[id]; toast('訪問を記録しました'); } else { it.done=false; const v=state.visits.find(v=>v.storeId===id&&v.date===todayStr()); if(v) state.visits=state.visits.filter(x=>x!==v); } save(); render(); }));
+    list.querySelectorAll('[data-act="open"]').forEach(b=>b.addEventListener('click',()=>openSheet(b.closest('.plan').dataset.id)));
+    list.querySelectorAll('[data-act="more"]').forEach(b=>b.addEventListener('click',()=>{ const id=b.closest('.plan').dataset.id; openRow=openRow===id?null:id; renderPlan(); }));
+    list.querySelectorAll('.strip [data-act]').forEach(b=>b.addEventListener('click',()=>{ const id=b.closest('.plan').dataset.id, act=b.dataset.act, items=state.plan.items, idx=items.findIndex(i=>i.storeId===id); const s=byId(id);
+      if(act==='skip') items.splice(idx,1); else if(act==='snooze'){ const d=new Date(); d.setDate(d.getDate()+(+b.dataset.days)); state.snooze[id]=ymd(d); items.splice(idx,1); toast(`${s.name}を${fmtShort(state.snooze[id])}まで寝かせます`); }
+      else if(act==='first'){ const [it]=items.splice(idx,1); const done=items.filter(i=>i.done), rest=items.filter(i=>!i.done); const ordered=orderStops(s,rest.map(i=>byId(i.storeId))).map(p=>rest.find(i=>i.storeId===p.id)); state.plan.items=[...done,it,...ordered]; state.plan.startName=''; state.plan.startPt=null; }
+      else if(act==='up'&&idx>0){ [items[idx-1],items[idx]]=[items[idx],items[idx-1]]; } else if(act==='down'&&idx<items.length-1){ [items[idx+1],items[idx]]=[items[idx],items[idx+1]]; }
+      openRow=null; save(); render(); }));
+  }
+  function togglePlan(id){ const t=todayStr(); if(state.plan.date!==t) state.plan={date:t,items:[]}; if(state.plan.items.some(i=>i.storeId===id)){ state.plan.items=state.plan.items.filter(i=>i.storeId!==id); toast('予定から外しました'); } else { if(state.plan.items.length>=9){ toast('予定は9件までにしています'); return; } state.plan.items.push({storeId:id,done:visitedToday(id)}); toast('今日の予定に入れました'); } save(); }
+  const inPlan=id=>state.plan.date===todayStr()&&state.plan.items.some(i=>i.storeId===id);
+
+  // ---- 地図 ----
+  let map=null, layer=null, meMarker=null, selectedId=null;
+  function ensureMap(){ if(map||typeof L==='undefined') return; const o=origin(); map=L.map('map',{zoomControl:true}).setView(o?[o.lat,o.lng]:[35.39,136.75],o?12:9); L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',{maxZoom:18,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>'}).addTo(map); layer=L.layerGroup().addTo(map); map.on('moveend',drawPins); }
+  const pinIcon=(cls,label)=>L.divIcon({className:'',html:`<div class="pin ${cls}">${label||''}</div>`,iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-14]});
+  function popupHTML(s){ const l=lastVisit(s.id), st=openStatus(s), p=inPlan(s.id); return `<div class="pop"><b>${esc(s.name)}</b><br><span class="small muted">${esc(s.address||'')}</span><br><span class="tag ${st.k}">${esc(st.short)}</span> <span class="num small">${esc(s.hours||'')}</span><br><span class="small">${l?`最終 ${fmt(l)}（${daysAgo(l)}日前）・${visitsOf(s.id).length}回`:'未訪問'}</span><div class="row"><button class="btn ok" data-pop="visit" data-id="${s.id}" ${visitedToday(s.id)?'disabled':''}>${visitedToday(s.id)?'✓ 今日記録済み':'今日行った'}</button><button class="btn ${p?'':'soft'}" data-pop="plan" data-id="${s.id}">${p?'予定から外す':'予定に入れる'}</button><button class="btn" data-pop="open" data-id="${s.id}">詳細</button></div></div>`; }
+  function drawPins(){ if(!map) return; layer.clearLayers(); const b=map.getBounds(); const list=visible().filter(s=>b.contains([s.lat,s.lng])); const org=origin(); list.forEach(s=>{ const g=gap(s); const st=openStatus(s); const cls=(g.k==='ok'?'':g.k==='over'||g.k==='soon'?'old':'none')+(st.k==='closed'||st.k==='before'?' closed':''); const m=L.marker([s.lat,s.lng],{icon:pinIcon(cls,'')}).addTo(layer); m.bindPopup(popupHTML(s),{closeButton:false,maxWidth:280}); m.on('popupopen',()=>{ selectedId=s.id; bindPopup(); }); }); if(me){ L.marker([me.lat,me.lng],{icon:L.divIcon({className:'',html:'<div class="pin me"></div>',iconSize:[18,18],iconAnchor:[9,9]}),interactive:false}).addTo(layer); }
+    const cnt={ok:0,old:0,none:0}; list.forEach(s=>{ const k=gap(s).k; cnt[k==='ok'?'ok':(k==='over'||k==='soon')?'old':'none']++; });
+    $('#mapFoot').innerHTML=`<div class="legend"><span><i class="dot"></i>2週間以内</span><span><i class="dot old"></i>それより前</span><span><i class="dot none"></i>未訪問</span><span>薄い＝今は閉店</span>${me?'<span><i class="dot me"></i>現在地</span>':''}</div><div class="note">この範囲に ${list.length}店（2週間以内 ${cnt.ok} ・ 前に ${cnt.old} ・ 未訪問 ${cnt.none}）${org?'':' ・ 現在地なし'}</div>`; }
+  function renderMap(){ ensureMap(); if(!map) return; const pr=state.prefs; $('#hdrSub').textContent='ピンを押すと店の情報'; const mc=$('#mapChips'); mc.innerHTML=[['1','本がある店'],['0','全部の店']].map(([k,l])=>`<button class="chip" data-k="${k}" aria-pressed="${String((k==='1')===!!pr.books)}">${l}</button>`).join('')+'<button class="chip" id="mapMe">現在地へ</button>'; mc.querySelectorAll('.chip[data-k]').forEach(b=>b.addEventListener('click',()=>{ pr.books=b.dataset.k==='1'; save(); drawPins(); renderMap(); })); $('#mapMe').addEventListener('click',async()=>{ const p=await currentPos(true); if(p) map.setView([p.lat,p.lng],12); else toast('現在地が取れません'); }); setTimeout(()=>{ map.invalidateSize(); drawPins(); },50); }
+  function bindPopup(){ document.querySelectorAll('.leaflet-popup [data-pop]').forEach(b=>{ if(b._bound) return; b._bound=true; b.addEventListener('click',()=>{ const id=b.dataset.id; if(b.dataset.pop==='open'){ map.closePopup(); openSheet(id); } else if(b.dataset.pop==='visit'){ recordVisit(id); map.closePopup(); drawPins(); } else { togglePlan(id); map.closePopup(); drawPins(); } }); }); }
+
+  // ---- 店舗一覧 ----
+  let q='', sortMode='dist';
+  $('#q').addEventListener('input',e=>{ q=e.target.value.trim(); renderStores(); });
+  function renderStores(){
+    const org=origin(); const pr=state.prefs; const prefs=[...new Set(visible().map(s=>s.pref||'その他'))];
+    if(!pr.pref){ const near=withDist(visible(),org)[0]; pr.pref=near?.s?.pref||'岐阜県'; }
+    const order=['岐阜県','愛知県','三重県','滋賀県','静岡県','長野県']; prefs.sort((a,b)=>(order.indexOf(a)+1||99)-(order.indexOf(b)+1||99)||a.localeCompare(b,'ja'));
+    const pc=$('#prefChips'); pc.innerHTML=['',...prefs].map(p=>`<button class="chip" data-p="${esc(p)}" aria-pressed="${String(p===pr.pref)}">${p||'全国'}</button>`).join(''); pc.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{ pr.pref=b.dataset.p; save(); renderStores(); }));
+    const sc=$('#sortChips'); sc.innerHTML=[['dist','近い順'],['gap','空いている順'],['name','名前順']].map(([k,l])=>`<button class="chip" data-s="${k}" aria-pressed="${String(k===sortMode)}">${l}</button>`).join(''); sc.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{ sortMode=b.dataset.s; renderStores(); }));
+    let list=visible().filter(s=>!pr.pref||(s.pref||'その他')===pr.pref); if(q){ const k=q.toLowerCase(); list=all().filter(s=>(s.name+' '+(s.address||'')).toLowerCase().includes(k)); }
+    let rows=withDist(list,org); if(sortMode==='gap') rows.sort((a,b)=>gapRank[gap(a.s).k]-gapRank[gap(b.s).k]||gap(b.s).d-gap(a.s).d); else if(sortMode==='name') rows.sort((a,b)=>a.s.name.localeCompare(b.s.name,'ja'));
+    $('#hdrSub').textContent=`${pr.pref||'全国'} ${list.length}店 ・ ${pr.books?'本がある店':'すべて'}`;
+    const ul=$('#storeList'); if(!rows.length){ ul.innerHTML='<li class="empty">該当する店がありません。</li>'; return; }
+    ul.innerHTML=rows.map(({s,km})=>{ const n=visitsOf(s.id).length, l=lastVisit(s.id), g=gap(s); return `<li><button class="card" data-id="${s.id}"><div class="name">${esc(s.name)}</div><div class="addr">${esc(s.address||'')}</div><div class="tagrow">${statusTag(s)}<span class="num small muted">${esc(s.hours||'')}</span>${km!=null?`<span class="tag num">${kmTxt(km)}km</span>`:''}<span class="tag ${g.cls}">${g.label}</span>${inPlan(s.id)?'<span class="tag today">今日の予定</span>':''}${state.hidden.includes(s.id)?'<span class="tag">非表示</span>':''}</div><div class="meta"><div class="cnt num">${n}<small>回</small></div><div class="last">${l?`最終 ${fmtShort(l)}`:'—'}</div></div></button></li>`; }).join('');
+    ul.querySelectorAll('.card').forEach(b=>b.addEventListener('click',()=>openSheet(b.dataset.id)));
+  }
+
+  // ---- 履歴 ----
+  let confirmDel=null;
+  function renderHist(){ const body=$('#histBody'); const vs=state.visits.filter(v=>byId(v.storeId)).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt); if(!vs.length){ body.innerHTML='<div class="empty">訪問記録はまだありません。「近く」の「行った」で記録できます。</div>'; return; } const g={}; vs.forEach(v=>{ const k=v.date.slice(0,7); (g[k]=g[k]||[]).push(v); }); body.innerHTML=Object.keys(g).sort().reverse().map(k=>{ const [y,m]=k.split('-'); return `<div class="month">${y}年${+m}月 ・ ${g[k].length}件</div><div class="hist">${g[k].map(v=>{ const s=byId(v.storeId); return `<div class="hrow" data-vid="${v.id}"><span class="date">${fmtShort(v.date)}<span class="muted">（${dow(v.date)}）</span></span><button class="who" data-id="${s.id}">${esc(s.name)}</button><button class="del ${confirmDel===v.id?'confirm':''}">${confirmDel===v.id?'本当に削除':'削除'}</button></div>`; }).join('')}</div>`; }).join(''); body.querySelectorAll('.who').forEach(b=>b.addEventListener('click',()=>openSheet(b.dataset.id))); body.querySelectorAll('.del').forEach(b=>b.addEventListener('click',()=>{ const vid=b.closest('.hrow').dataset.vid; if(confirmDel===vid){ state.visits=state.visits.filter(x=>x.id!==vid); confirmDel=null; save(); toast('削除しました'); render(); } else { confirmDel=vid; setTimeout(()=>{ if(confirmDel===vid){ confirmDel=null; if(view==='rireki') renderHist(); } },4000); renderHist(); } })); }
+
+  // ---- 設定 ----
+  function renderSettings(){ $('#statStores').textContent=`${stores.length}店（全国）`; $('#statFetched').textContent=storesMeta.fetchedAt||'—'; $('#statCustom').textContent=state.custom.length; $('#statVisits').textContent=state.visits.length; if(document.activeElement!==$('#homeAddr')) $('#homeAddr').value=state.home?.address||''; $('#homeStat').textContent=state.home?(hasGeo(state.home)?'位置あり':'位置が取れていません'):'未設定'; $('#statVer').textContent=document.querySelector('meta[name=app-version]')?.content||'—'; $('#statLoc').textContent={ok:'取得できています',denied:'許可されていません',timeout:'応答なし',asking:'確認中',idle:'未取得',none:'この端末では使えません',stale:'前回の位置を使用',error:'エラー'}[locState]||locState;
+    const hl=$('#hiddenList'); const hs=state.hidden.map(byId).filter(Boolean); hl.innerHTML=hs.length?hs.map(s=>`<div class="kv"><span>${esc(s.name)}</span><button class="linkish" data-unhide="${s.id}">戻す</button></div>`).join(''):'なし'; hl.querySelectorAll('[data-unhide]').forEach(b=>b.addEventListener('click',()=>{ state.hidden=state.hidden.filter(x=>x!==b.dataset.unhide); save(); renderSettings(); })); }
+  $('#btnHomeSave').addEventListener('click',async()=>{ const a=$('#homeAddr').value.trim(); if(!a){ state.home=null; save(); renderSettings(); return; } $('#homeStat').textContent='取得中…'; const g=await geocode(a); state.home=g?{address:a,lat:g.lat,lng:g.lng}:{address:a}; save(); renderSettings(); toast(g?'出発地を保存しました':'住所から位置が取れませんでした'); });
+  $('#btnAddCustom').addEventListener('click',async()=>{ const name=$('#cName').value.trim(), address=$('#cAddr').value.trim(), hours=$('#cHours').value.trim(); if(!name){ $('#customMsg').textContent='店名を入れてください'; return; } $('#customMsg').textContent='位置を取得中…'; const g=address?await geocode(address):null; const s={id:'c'+uid(),name,address,hours,brand:'',pref:(g?.title.match(/^(.+?[都道府県])/)||[])[1]||'',city:'',lat:g?.lat,lng:g?.lng,geoTitle:g?.title}; if(!hasGeo(s)){ $('#customMsg').textContent='住所から位置が取れませんでした。住所を確かめてください'; return; } state.custom.push(s); save(); $('#cName').value=$('#cAddr').value=$('#cHours').value=''; $('#customMsg').textContent=`追加しました（${g.title}）`; toast('店を追加しました'); renderSettings(); });
+  $('#btnExport').addEventListener('click',()=>{ const ta=$('#exportText'); ta.value=JSON.stringify({app:'sedori-map',v:1,exportedAt:new Date().toISOString(),...state}); ta.hidden=false; $('#btnCopyExport').hidden=false; ta.focus(); ta.select(); });
+  $('#btnCopyExport').addEventListener('click',()=>{ const ta=$('#exportText'); const ok=()=>toast('コピーしました'); if(navigator.clipboard?.writeText) navigator.clipboard.writeText(ta.value).then(ok).catch(()=>{ ta.select(); toast('全選択しました。長押しでコピー'); }); else { ta.select(); toast('全選択しました。長押しでコピー'); } });
+  let restoreArmed=false; $('#btnRestore').addEventListener('click',()=>{ const msg=$('#restoreMsg'); let d; try{ d=JSON.parse($('#restoreText').value); }catch(e){ msg.textContent='読み取れませんでした。'; return; } if(!d||!Array.isArray(d.visits)){ msg.textContent='このアプリの控えではないようです。'; return; } if(!restoreArmed){ restoreArmed=true; msg.textContent=`訪問記録${d.visits.length}件で今の内容（${state.visits.length}件）を置き換えます。もう一度押すと実行。`; setTimeout(()=>{ restoreArmed=false; },6000); return; } state={visits:d.visits,custom:d.custom||[],hidden:d.hidden||[],snooze:d.snooze||{},home:d.home||null,prefs:d.prefs||{books:true,radius:30,pref:''},plan:d.plan||{date:todayStr(),items:[]}}; save(); restoreArmed=false; msg.textContent='戻しました。'; $('#restoreText').value=''; render(); });
+  $('#btnCheckUpdate').addEventListener('click',async()=>{ try{ const r=await navigator.serviceWorker?.getRegistration(); if(r){ await r.update(); toast(r.waiting||r.installing?'新しい版を取り込み中':'この版が最新です'); } else toast('ブラウザ表示です'); }catch(e){ toast('確認できませんでした'); } });
+
+  // ---- 詳細シート ----
+  let sheetId=null; const sheet=$('#sheet'), scrim=$('#scrim');
+  function openSheet(id){ sheetId=id; renderSheet(); sheet.classList.add('open'); scrim.classList.add('open'); }
+  function closeSheet(){ sheet.classList.remove('open'); scrim.classList.remove('open'); sheetId=null; }
+  scrim.addEventListener('click',closeSheet); $('#shClose').addEventListener('click',closeSheet);
+  (function(){ let y0=null; sheet.addEventListener('pointerdown',e=>{ if($('#sheetInner').scrollTop>0&&e.target.closest('.inner')) return; y0=e.clientY; }); sheet.addEventListener('pointerup',e=>{ if(y0!=null&&e.clientY-y0>80) closeSheet(); y0=null; }); })();
+  function renderSheet(){
+    const s=byId(sheetId); if(!s){ closeSheet(); return; } const inner=$('#sheetInner'); const t=todayStr(); const vs=visitsOf(s.id), last=vs[0]?.date||null, st=openStatus(s), g=gap(s), today=visitedToday(s.id), planned=inPlan(s.id), hidden=state.hidden.includes(s.id); const org=origin(); const km=org&&hasGeo(s)?dist(org,s):null;
+    inner.innerHTML=`<div class="row" style="margin-bottom:4px">${s.builtin?`<span class="tag brand">${esc(s.brand)}</span>`:'<span class="tag custom">自分で追加</span>'}${s.pref?`<span class="tag">${esc(s.pref)}${esc(s.city||'')}</span>`:''}${km!=null?`<span class="tag num">${org.name}から${kmTxt(km)}km</span>`:''}</div>
+      <h2 id="shName">${esc(s.name)}</h2><div class="addr">${esc(s.address||'住所なし')}${s.tel?` ・ <span class="num">${esc(s.tel)}</span>`:''}</div>
+      <div class="hoursbox"><div><span class="tag ${st.k}">${esc(st.label)}</span></div><div style="margin-top:4px">営業時間 <b class="num">${esc(s.hours||'不明')}</b>${s.hours2?`<br><span class="small muted">別の時間帯の記載：${esc(s.hours2)}</span>`:''}</div><div class="small muted" style="margin-top:2px">${s.builtin?'公式サイトの店舗検索より。祝日・臨時休業は未反映':'自分で入れた時間'}</div></div>
+      <div class="row"><a class="btn soft" href="${mapsUrl(s)}" target="_blank" rel="noopener">Googleマップ</a>${s.url?`<a class="btn" href="${esc(s.url)}" target="_blank" rel="noopener">公式ページ</a>`:''}<button class="btn ${planned?'':'soft'}" id="shPlan">${planned?'予定から外す':'今日の予定に入れる'}</button></div>
+      <div class="stats"><div class="stat"><div class="k">累計</div><div class="v">${vs.length}<span class="small muted"> 回</span></div></div><div class="stat"><div class="k">最終</div><div class="v">${last?fmtShort(last):'—'}</div><div class="small"><span class="tag ${g.cls}">${g.label}</span></div></div></div>
+      <button class="btn ok big block" id="shToday" ${today?'disabled':''}>${today?'✓ 今日の訪問は記録済み':'今日行った'}</button>
+      <div class="hd"><h3>日付を選んで記録</h3></div><div class="datewrap"><input type="date" id="shDate" max="${t}" value="${t}"><button class="btn" id="shYest">昨日</button><button class="btn soft" id="shAddDate">この日に行った</button></div>
+      <div class="hd"><h3>訪問履歴 ${vs.length}件</h3></div>${vs.length?`<div class="hist">${vs.map(v=>`<div class="hrow" data-vid="${v.id}"><span class="date">${fmt(v.date)}<span class="muted">（${dow(v.date)}）</span></span><span class="who"></span><button class="del ${confirmDel===v.id?'confirm':''}">${confirmDel===v.id?'本当に削除':'削除'}</button></div>`).join('')}</div>`:'<div class="empty" style="padding:12px">まだ記録がありません</div>'}
+      <div class="hd" style="margin-top:20px"><h3>この店</h3></div><div class="row">${state.snooze[s.id]&&state.snooze[s.id]>t?`<button class="btn warn" id="shUnsnooze">寝かせ解除（${fmtShort(state.snooze[s.id])}まで）</button>`:`<button class="btn" id="shSnooze">1ヶ月寝かせる</button>`}<button class="btn ${hidden?'warn':'danger'}" id="shHide">${hidden?'表示に戻す':'もう行かない（非表示）'}</button>${!s.builtin?`<button class="btn danger" id="shDelCustom">この店を削除</button>`:''}</div>`;
+    $('#shToday').addEventListener('click',()=>{ if(recordVisit(s.id)) renderSheet(); });
+    $('#shYest').addEventListener('click',()=>{ const y=new Date(); y.setDate(y.getDate()-1); $('#shDate').value=ymd(y); });
+    $('#shAddDate').addEventListener('click',()=>{ const d=$('#shDate').value; if(!d||d>t) return; if(recordVisit(s.id,d)) renderSheet(); });
+    $('#shPlan').addEventListener('click',()=>{ togglePlan(s.id); renderSheet(); render(); });
+    const sn=$('#shSnooze'); if(sn) sn.addEventListener('click',()=>{ const d=new Date(); d.setDate(d.getDate()+30); state.snooze[s.id]=ymd(d); save(); toast(`${fmtShort(state.snooze[s.id])}まで寝かせます`); renderSheet(); render(); });
+    const un=$('#shUnsnooze'); if(un) un.addEventListener('click',()=>{ delete state.snooze[s.id]; save(); renderSheet(); render(); });
+    $('#shHide').addEventListener('click',()=>{ if(hidden){ state.hidden=state.hidden.filter(x=>x!==s.id); toast('表示に戻しました'); } else { if(pendingHide!==s.id){ pendingHide=s.id; toast('もう一度押すと一覧と地図から消えます（設定で戻せます）'); setTimeout(()=>{ if(pendingHide===s.id) pendingHide=null; },4000); return; } state.hidden.push(s.id); state.plan.items=state.plan.items.filter(i=>i.storeId!==s.id); pendingHide=null; closeSheet(); toast('非表示にしました'); } save(); if(sheetId) renderSheet(); render(); });
+    const dc=$('#shDelCustom'); if(dc) dc.addEventListener('click',()=>{ if(pendingHide!=='del'+s.id){ pendingHide='del'+s.id; toast('もう一度押すと削除します（記録も消えます）'); setTimeout(()=>{ if(pendingHide==='del'+s.id) pendingHide=null; },4000); return; } state.custom=state.custom.filter(x=>x.id!==s.id); state.visits=state.visits.filter(v=>v.storeId!==s.id); pendingHide=null; save(); closeSheet(); toast('削除しました'); render(); });
+    inner.querySelectorAll('.del').forEach(b=>b.addEventListener('click',()=>{ const vid=b.closest('.hrow').dataset.vid; if(confirmDel===vid){ state.visits=state.visits.filter(x=>x.id!==vid); confirmDel=null; save(); toast('削除しました'); } else { confirmDel=vid; setTimeout(()=>{ if(confirmDel===vid){ confirmDel=null; if(sheetId) renderSheet(); } },4000); } renderSheet(); render(); }));
+  }
+
+  // ---- boot ----
+  (async()=>{ await loadStores(); setView((location.hash||'#chikaku').replace('#',''),false); const p=await currentPos(); render(); if(p&&map) map.setView([p.lat,p.lng],12); })();
+  setInterval(()=>{ if(!document.hidden&&(view==='chikaku'||view==='tenpo')) render(); },60000);
+  document.addEventListener('visibilitychange',()=>{ if(!document.hidden) render(); });
+})();
+</script>
+
+<script>
+if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').then(function(reg){
+  function show(){ if(document.getElementById('updBar')) return; var b=document.createElement('div'); b.id='updBar'; b.innerHTML='<span>新しい版があります</span><button type="button">更新する</button>'; b.querySelector('button').onclick=function(){ location.reload(); }; document.body.appendChild(b); }
+  var t0=Date.now(); var early=function(){ return Date.now()-t0<15000; };
+  function arrived(w){ if(early()){ try{ w&&w.postMessage&&w.postMessage('skip'); }catch(e){} setTimeout(function(){ location.reload(); },300); } else show(); }
+  reg.addEventListener('updatefound',function(){ var w=reg.installing; w&&w.addEventListener('statechange',function(){ if(w.state==='installed'&&navigator.serviceWorker.controller) arrived(w); }); });
+  if(reg.waiting&&navigator.serviceWorker.controller) arrived(reg.waiting);
+  var hadCtrl=!!navigator.serviceWorker.controller; var reloaded=false; navigator.serviceWorker.addEventListener('controllerchange',function(){ if(reloaded||!hadCtrl) return; reloaded=true; if(early()) location.reload(); });
+  reg.update().catch(function(){});
+}).catch(function(){});}
+</script>
+</body></html>
