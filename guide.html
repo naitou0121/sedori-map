@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>仕入れマップ 手引き</title><meta name="theme-color" content="#8a5a2b"><link rel="icon" href="./icon-192.png">
+<style>
+:root{--bg:#f6f3ee;--surface:#fff;--ink:#2b2420;--muted:#7a6f66;--line:#e6dfd5;--accent:#8a5a2b;--accent-soft:#f1e6d8;--code:#f3eee6}
+@media (prefers-color-scheme:dark){:root{--bg:#1c1917;--surface:#26211e;--ink:#f1ebe4;--muted:#a79c92;--line:#3a332e;--accent:#d9a86c;--accent-soft:#3a2d20;--code:#2e2824}}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.75 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;-webkit-text-size-adjust:100%}
+.wrap{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+.top{display:flex;align-items:center;gap:12px;margin-bottom:8px}.top img{width:44px;height:44px;border-radius:11px}.top a{color:var(--accent);text-decoration:none;font-weight:700;margin-left:auto;font-size:14px}
+h1{font-size:24px;margin:8px 0 4px;line-height:1.3}h2{font-size:19px;margin:36px 0 8px;padding-top:14px;border-top:1px solid var(--line)}h3{font-size:16px;margin:22px 0 6px}h4{font-size:15px;margin:16px 0 4px;color:var(--muted)}
+p{margin:8px 0}ul,ol{padding-left:22px;margin:6px 0}li{margin:3px 0}a{color:var(--accent)}
+code{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:1px 6px;border-radius:6px;word-break:break-all}
+pre{background:var(--code);border:1px solid var(--line);border-radius:12px;padding:12px 14px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}
+table{border-collapse:collapse;width:100%;font-size:14px;margin:8px 0;display:block;overflow-x:auto}th,td{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}th{background:var(--accent-soft)}
+blockquote{margin:10px 0;padding:8px 14px;border-left:4px solid var(--accent);background:var(--surface);border-radius:0 10px 10px 0;color:var(--muted)}hr{border:0;border-top:1px solid var(--line);margin:28px 0}
+.foot{margin-top:40px;color:var(--muted);font-size:13px}
+</style></head><body><div class="wrap">
+<div class="top"><img src="./icon-192.png" alt=""><span style="font-weight:700">仕入れマップ</span><a href="./">← アプリへ</a></div>
+<h1>仕入れマップ</h1>
+<p>本せどりの店舗回りを楽にする、無料のスマホ用アプリです。全国のブックオフ 780店の場所と営業時間が入っていて、<b>今いる所から近い順</b>に出ます。行った店を記録して、次にどこへ行くかを決めるための道具です。</p>
+<ul>
+<li>使う：<b>https://naitou0121.github.io/sedori-map/</b></li>
+<li>ログイン不要・広告なし・費用ゼロ。記録はスマホの中にだけ残り、どこにも送られません</li>
+<li>中身はすべて公開（MITライセンス）。自分用に書き換えて、自分の版を配ってOK</li>
+</ul>
+<p>制作：合同会社にしき（納豆 <a href="https://x.com/nattou091" target="_blank" rel="noopener">@nattou091</a>）。NASOラボの皆さんへの贈り物として作りました。</p>
+<hr>
+<h2>1. 使い方</h2>
+<h3>入れ方（1分）</h3>
+<ol>
+<li><b>iPhone</b>：Safari で上のURLを開く → 画面下の「共有」ボタン → <b>ホーム画面に追加</b></li>
+<li><b>Android</b>：Chrome で開く → 右上「⋮」 → <b>ホーム画面に追加</b>（または「アプリをインストール」）</li>
+<li>開いた時に位置情報を聞かれたら「許可」。近い順の計算と地図の現在地にだけ使い、保存も送信もしません</li>
+</ol>
+<p>ブラウザのまま使っても動きますが、ホーム画面に入れると全画面になり、圏外でも開けます（地図の絵だけ通信が要ります）。</p>
+<h3>画面</h3>
+<table><tr><th>タブ</th><th>何ができるか</th></tr><tr><td><b>近く</b></td><td>現在地から近い順に店が並ぶ。距離・営業中／あと○分で閉店／閉店・前回いつ行ったか。「行った」を押すだけで記録</td></tr><tr><td><b>地図</b></td><td>範囲内の店をピンで表示。緑＝2週間以内に行った、茶＝それより前、白＝未訪問。薄い＝今は閉店。ピンを押すと記録・予定入れ</td></tr><tr><td><b>店舗</b></td><td>都道府県で絞って一覧。近い順／空いている順／名前順。店名・住所で検索</td></tr><tr><td><b>履歴</b></td><td>訪問記録を月ごとに。間違えた記録は削除</td></tr><tr><td><b>設定</b></td><td>店データの出どころ・出発地・店を足す・非表示・控え（バックアップ）・このアプリについて</td></tr></table>
+<h3>よく使う流れ</h3>
+<ol>
+<li>「近く」を開く → 営業中の近い店が上から並ぶ</li>
+<li><b>「近い順に5店で今日の予定を組む」</b> → 回る順に並ぶ → <b>「Googleマップで案内」</b> でまとめて道案内</li>
+<li>店に着いたら「行った」（または予定のチェック）。前回からの日数が店ごとに残る</li>
+<li>店の詳細（店名を押す）で、しばらく行かない店は「1ヶ月寝かせる」、もう行かない店は「非表示」</li>
+</ol>
+<h3>絞り込みのチップ</h3>
+<ul>
+<li><b>本がある店／全部の店</b>：ブックオフには本を置かない業態（Rehello・aidect・あそビバ など）もあるので、初期値は「本がある店」</li>
+<li><b>チェーン名のチップ</b>：店データが2チェーン以上入っている時だけ出る。押すと表示から外せる</li>
+<li><b>10km以内／30km／100km／全部</b>：近くの一覧の範囲</li>
+</ul>
+<h3>店を自分で足す（他のチェーン・個人店）</h3>
+<p>設定 →「店を足す」。店名・住所・営業時間・種類（任意）を入れて「追加」。住所から位置を取って地図にも出ます。</p>
+<p><b>まとめて足す</b>：表計算（Excel・スプレッドシート）で <code>店名, 住所, 営業時間, 種類</code> の4列を作り、コピーして「まとめて足す」の欄に貼る → 「まとめて追加」。1店ずつ位置を取るので、30店なら30秒ほど。位置が取れなかった行は欄に残るので、住所を直して再実行。</p>
+<p>足した店は「自分で追加」のタグが付き、あなたのスマホの中だけに保存されます。</p>
+<h3>控え（バックアップ）と機種変更</h3>
+<p>訪問記録・足した店・設定は<b>この端末の中だけ</b>にあります。機種変更やブラウザのデータ消去で消えるので、設定 →「控えを作る」→「コピー」でメモアプリなどに控えてください。新しい端末では「控えから戻す」に貼れば戻ります。</p>
+<h3>注意</h3>
+<ul>
+<li>営業時間は各チェーンの公式サイトなどから取ったもので、<b>祝日・臨時休業は入っていません</b>。行く前に店舗詳細の「公式ページ」で確認を</li>
+<li>店データはアプリの更新で差し替わります（起動直後に「新しい版があります」と出たら「更新する」）</li>
+<li>位置情報は端末の中で距離計算にだけ使います。住所から位置を取る時だけ、国土地理院の住所検索（公的・無料）に住所文字列を送ります</li>
+</ul>
+<hr>
+<h2>2. 仕組み</h2>
+<p>サーバーもデータベースもありません。GitHub Pages に置いた静的ファイルだけで動く PWA（ホーム画面に入れられるWebアプリ）です。</p>
+<pre>sedori-map/
+├ src/body.html         ← アプリ本体（画面・動き）。直すのはここだけ
+├ build.py              ← ビルド：下の4つを作り直す
+├ index.html            ← build.py が作る。配布される本体（直接編集しない）
+├ guide.html            ← build.py が README.md から作る手引き（このページ）
+├ sw.js                 ← オフライン用のサービスワーカー（版の番号は build.py が進める）
+├ data/
+│  ├ sources/           ← チェーンごとの店データ（1チェーン1ファイル）
+│  │  └ bookoff.json    ←   ブックオフ 780店（fetch_bookoff.py が作る）
+│  └ stores.json        ← build.py が sources/* を合流させたもの（直接編集しない）
+├ fetch_bookoff.py      ← ブックオフ公式の店舗検索から店データを取り直す
+├ tools/
+│  ├ csv2json.py        ← CSV → data/sources/&lt;チェーン&gt;.json（他チェーンを足す道具）
+│  └ 見本.csv           ←   CSVの書き方の見本
+├ deploy.sh / 公開.command ← ビルド → GitHub に push → 1〜2分で本番に反映
+├ manifest.webmanifest / icon-*.png ← ホーム画面アイコンなど
+└ leaflet.js / leaflet.css ← 地図ライブラリ（Leaflet・BSD-2）</pre>
+<h3>データの流れ</h3>
+<ol>
+<li><code>data/sources/*.json</code> にチェーンごとの店が入っている。各ファイルは <code>chain</code>（チェーンの名前・色・本を扱うか・出どころ）と <code>stores</code>（店の配列）を持つ</li>
+<li><code>python3 build.py</code> が全部を <code>data/stores.json</code> にまとめ、<code>src/body.html</code> から <code>index.html</code> を作り、<code>README.md</code> から <code>guide.html</code> を作り、<code>sw.js</code> の版を進める</li>
+<li>アプリは起動時に <code>data/stores.json</code> を読み、端末内にキャッシュ。訪問記録などは <code>localStorage</code> に保存</li>
+<li>地図の絵は国土地理院タイル、住所→位置は国土地理院の住所検索API。どちらも無料・キー不要</li>
+</ol>
+<h3>店1件の形</h3>
+<pre>{&quot;id&quot;:&quot;bo20374&quot;,&quot;chain&quot;:&quot;bookoff&quot;,&quot;name&quot;:&quot;BOOKOFF 札幌南2条店&quot;,&quot;brand&quot;:&quot;BOOKOFF&quot;,
+ &quot;address&quot;:&quot;北海道札幌市中央区南二条西1-3&quot;,&quot;pref&quot;:&quot;北海道&quot;,&quot;city&quot;:&quot;札幌市中央区&quot;,
+ &quot;lat&quot;:43.0584,&quot;lng&quot;:141.3561,&quot;hours&quot;:&quot;10:00～21:00&quot;,&quot;hours2&quot;:&quot;&quot;,&quot;tel&quot;:&quot;011-200-5777&quot;,
+ &quot;url&quot;:&quot;https://www.bookoff.co.jp/shop/shop20374.html&quot;}</pre>
+<ul>
+<li><code>id</code> は全チェーンで重複しないように（ぶつかると build.py がチェーンIDを頭に付けて逃がす）</li>
+<li><code>hours</code> は <code>10:00～21:00</code> の形なら営業中判定に使う。<code>翌1:00</code> や <code>〜</code> <code>-</code> も読める。読めない形は「営業時間 不明」として表示だけ</li>
+<li><code>brand</code> は業態・店の種類。チェーン名と同じなら省略可。<code>【閉店】</code> を含む店はアプリ側で除外</li>
+</ul>
+<h3>自分で足した店・記録の置き場所</h3>
+<p><code>localStorage</code> の <code>sedori-map-v1</code> に1つのJSONで入っています（<code>visits</code> 訪問記録・<code>custom</code> 足した店・<code>hidden</code> 非表示・<code>snooze</code> 寝かせ・<code>home</code> 出発地・<code>prefs</code> 絞り込み・<code>plan</code> 今日の予定）。「控えを作る」で出る文字列はこれそのものです。</p>
+<hr>
+<h2>3. 改造する</h2>
+<p>必要なもの：Mac か Windows か Linux のパソコン、Python 3（Macは最初から入っています）、GitHub のアカウント（無料）。プログラミングの経験は要りません。手順どおりに打てば動きます。</p>
+<h3>3-1. 自分の版を持つ（フォーク）</h3>
+<ol>
+<li><a href="https://github.com/naitou0121/sedori-map" target="_blank" rel="noopener">https://github.com/naitou0121/sedori-map</a> を開き、右上の <b>Fork</b> → 自分のアカウントに複製</li>
+<li>複製したリポジトリの <b>Settings → Pages → Branch を main / (root) にして Save</b></li>
+<li>1〜2分で <code>https://&lt;あなたのID&gt;.github.io/sedori-map/</code> で自分の版が開く</li>
+<li>パソコンに取ってくる：ターミナルで <code>git clone <a href="https://github.com/&lt;あなたのID&gt;/sedori-map.git" target="_blank" rel="noopener">https://github.com/&lt;あなたのID&gt;/sedori-map.git</a></code> → <code>cd sedori-map</code></li>
+</ol>
+<p>以後、直したら <code>./deploy.sh "何を直したか"</code>（Windows は <code>python3 build.py</code> → <code>git add -A</code> → <code>git commit -m "..."</code> → <code>git push</code>）で自分の本番が更新されます。</p>
+<h3>3-2. 他のチェーンの店を足す（いちばん多い改造）</h3>
+<p>例：「古本市場」を足す。</p>
+<ol>
+<li>表計算で店の一覧を作り、CSV で保存する。列は <code>name,address,hours,hours2,tel,url,brand</code>（<code>name</code> と <code>address</code> だけ必須）。見本は <code>tools/見本.csv</code></li>
+<li>ターミナルで</li>
+</ol>
+<pre>python3 tools/csv2json.py 古本市場.csv --id furuhon --name 古本市場 --short 古本 --color &quot;#2a7a3b&quot; --books
+python3 build.py</pre>
+<ol>
+<li>ブラウザで <code>index.html</code> を開いて確かめる（ローカル確認は <code>python3 -m http.server 8000</code> → <a href="http://localhost:8000/" target="_blank" rel="noopener">http://localhost:8000/</a> ）</li>
+<li><code>./deploy.sh "古本市場を追加"</code> で公開</li>
+</ol>
+<p><code>--id</code> はチェーンの英字ID（ファイル名と店IDの頭に使う）、<code>--name</code> は表示名、<code>--short</code> はチップ用の短い名前、<code>--color</code> はピンの色、<code>--books</code> は本を扱う店なら付ける（「本がある店」の絞り込みに入る）。</p>
+<p>住所から位置を取るのに1店1秒かかります。位置が取れなかった行は最後にまとめて出るので、住所を直して再実行（取れた行は使い回す）。座標が分かっている店は <code>lat,lng</code> 列を足せば住所検索を飛ばします。</p>
+<p>公式サイトに店舗一覧がある場合は、<code>fetch_bookoff.py</code> を真似て取得スクリプトを書くこともできます。ポイントは <b>出力を <code>data/sources/&lt;id&gt;.json</code> にすること</b>。その先は build.py が面倒を見ます。</p>
+<blockquote>他社サイトからデータを取る時は、そのサイトの利用規約と robots.txt を確認し、間隔を空けて（1秒以上）取ってください。ブックオフのスクリプトは1都道府県1リクエスト・1.2秒間隔です。</blockquote>
+<h3>3-3. ブックオフのデータを取り直す（営業時間が変わった・新店）</h3>
+<pre>python3 fetch_bookoff.py
+python3 build.py
+./deploy.sh &quot;店舗データ更新&quot;</pre>
+<p>公式の店舗検索が裏で使っている公開APIから取ります（約1分）。</p>
+<h3>3-4. 見た目・文言・動きを変える</h3>
+<p><code>src/body.html</code> が唯一の正本です。上から CSS → 画面のHTML → JavaScript の順。</p>
+<ul>
+<li>色：先頭の <code>:root{--accent:...}</code> など。ダークモードは <code>@media (prefers-color-scheme:dark)</code> の中</li>
+<li>「2週間以内＝緑／30日以上＝赤」の閾値：JavaScript の <code>gap()</code> 関数（<code>d&gt;=30</code> と <code>d&gt;=14</code>）</li>
+<li>今日の予定の店数（5店）：<code>quickPlan()</code> の <code>slice(0,5)</code></li>
+<li>近くの一覧の最大件数（40件）：<code>renderNear()</code> の <code>slice(0,40)</code></li>
+<li>文言はすべて HTML か JavaScript の中に日本語で直書きなので、検索して置き換えればOK</li>
+</ul>
+<p>直したら <code>python3 build.py</code>（または <code>./deploy.sh</code>）。<code>index.html</code> を直接直しても次のビルドで消えます。</p>
+<h3>3-5. アプリ名・アイコン・URLを自分のものにする</h3>
+<ul>
+<li>アプリ名：<code>manifest.webmanifest</code> の <code>name</code> <code>short_name</code>、<code>build.py</code> の <code>apple-mobile-web-app-title</code>、<code>src/body.html</code> の「このアプリについて」</li>
+<li>アイコン：<code>icon-180.png</code>（iPhone）・<code>icon-192.png</code>・<code>icon-512.png</code>・<code>icon-512-maskable.png</code> を差し替え</li>
+<li>本番URL：<code>deploy.sh</code> と <code>README.md</code> 内の <code>naitou0121.github.io/sedori-map</code> を自分のものに</li>
+<li>GitHubリンク：<code>src/body.html</code> の「中身（GitHub）」ボタン</li>
+</ul>
+<h3>3-6. 困った時</h3>
+<ul>
+<li><b>直したのにスマホで変わらない</b>：起動直後に「新しい版があります」が出るまで数回開き直す。出ない時は 設定 → 診断 →「今すぐ確認」。それでもダメなら build.py を通したか（<code>index.html</code> の <code>app-version</code> が進んだか）を確認</li>
+<li><b>build.py がエラー</b>：<code>data/sources/*.json</code> のどれかが壊れている可能性。エラーメッセージのファイル名を見る</li>
+<li><b>位置が取れない住所</b>：番地の前までで止めると取れることが多い（「○○市△△町1-2-3 ビル名」→「○○市△△町1-2-3」）</li>
+<li><b>GitHub Pages が 404</b>：Settings → Pages で Branch が main / (root) になっているか。有効化直後は数分待つ</li>
+</ul>
+<hr>
+<h2>4. 出どころ・ライセンス</h2>
+<ul>
+<li>店舗データ：ブックオフ公式サイト（bookoff.co.jp）の店舗検索。営業時間・休業は各店の公式ページが正</li>
+<li>地図：<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>（国土地理院）</li>
+<li>住所→位置：国土地理院 住所検索API</li>
+<li>地図ライブラリ：<a href="https://leafletjs.com/" target="_blank" rel="noopener">Leaflet</a>（BSD 2-Clause）</li>
+<li>このアプリのコード：MIT ライセンス（<code>LICENSE</code>）。© 2026 合同会社にしき。コピー・改変・再配布・商用利用すべて可。著作権表示だけ残してください</li>
+</ul>
+<p>不具合・要望は GitHub の Issues か、NASOラボの Discord へ。</p>
+<div class="foot">この手引きは README.md から自動で作っています（版 202611060847）。</div>
+</div></body></html>

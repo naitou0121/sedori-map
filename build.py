@@ -1,10 +1,32 @@
 #!/usr/bin/env python3
-"""src/body.html → index.html（PWA用の頭・SW登録・更新バナーを付ける）。sw.js のキャッシュ名も版を進める。"""
-import re, pathlib, datetime
+"""ビルド（配布物を作り直す）。やること：
+  1. data/sources/*.json（チェーンごとの店データ）→ data/stores.json に合流
+  2. src/body.html → index.html（PWA用の頭・SW登録・更新バナーを付ける）
+  3. README.md → guide.html（スマホで読める手引き）
+  4. sw.js のキャッシュ名と配布ファイル一覧を更新
+直し方は README.md「改造する」。"""
+import re, json, html, pathlib, datetime
 root=pathlib.Path(__file__).parent
+ver=datetime.datetime.now().strftime('%Y%m%d%H%M')
+
+# ---- 1. 店データの合流 ----
+chains=[]; stores=[]; seen=set()
+for f in sorted((root/'data/sources').glob('*.json')):
+    j=json.loads(f.read_text())
+    ch=j.get('chain') or {'id':f.stem,'name':f.stem}
+    ch.setdefault('id',f.stem); ch.setdefault('name',ch['id']); ch.setdefault('short',ch['name'][:2]); ch.setdefault('color','#8a5a2b'); ch.setdefault('books',False)
+    ch['fetchedAt']=j.get('fetchedAt',''); n=0
+    for s in j.get('stores',[]):
+        if not (isinstance(s.get('lat'),(int,float)) and isinstance(s.get('lng'),(int,float))): continue
+        s['chain']=ch['id']
+        if s['id'] in seen: s['id']=ch['id']+'_'+s['id']
+        seen.add(s['id']); stores.append(s); n+=1
+    ch['count']=n; chains.append(ch); print(f"  {ch['name']}: {n}店 ({f.name})")
+(root/'data/stores.json').write_text(json.dumps({'builtAt':datetime.date.today().isoformat(),'chains':chains,'count':len(stores),'stores':stores},ensure_ascii=False,separators=(',',':')))
+
+# ---- 2. index.html ----
 body=(root/'src/body.html').read_text()
 body=body.replace('<meta name="claude:viewport-fit-sides" content="cover">\n','')
-ver=datetime.datetime.now().strftime('%Y%m%d%H%M')
 head=f'''<!doctype html>
 <html lang="ja"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -35,7 +57,75 @@ if('serviceWorker' in navigator){navigator.serviceWorker.register('./sw.js').the
 }).catch(function(){});}
 </script>
 '''
-out=head+body[:i]+'</head><body>'+body[i:]+sw+'</body></html>'
-(root/'index.html').write_text(out)
-swp=root/'sw.js'; t=swp.read_text(); t=re.sub(r'const C="sedori-map-[^"]*"',f'const C="sedori-map-{ver}"',t); swp.write_text(t)
-print('built',ver)
+(root/'index.html').write_text(head+body[:i]+'</head><body>'+body[i:]+sw+'</body></html>')
+
+# ---- 3. README.md → guide.html（外部ライブラリなしの小さな変換） ----
+def md2html(md):
+    out=[]; lines=md.split('\n'); k=0; inlist=None
+    def inline(t):
+        t=html.escape(t,quote=False)
+        t=re.sub(r'`([^`]+)`',r'<code>\1</code>',t)
+        t=re.sub(r'\*\*(.+?)\*\*',r'<b>\1</b>',t)
+        t=re.sub(r'\[([^\]]+)\]\(([^)\s]+)\)',r'<a href="\2" target="_blank" rel="noopener">\1</a>',t)
+        t=re.sub(r'(?<!["\'>=])(https?://[^\s<)]+)',r'<a href="\1" target="_blank" rel="noopener">\1</a>',t)
+        return t
+    def close():
+        nonlocal inlist
+        if inlist: out.append(f'</{inlist}>'); inlist=None
+    while k<len(lines):
+        l=lines[k]
+        if l.startswith('```'):
+            close(); buf=[]; k+=1
+            while k<len(lines) and not lines[k].startswith('```'): buf.append(lines[k]); k+=1
+            out.append('<pre>'+html.escape('\n'.join(buf))+'</pre>'); k+=1; continue
+        m=re.match(r'^(#{1,4}) (.*)',l)
+        if m: close(); n=len(m.group(1)); out.append(f'<h{n}>{inline(m.group(2))}</h{n}>'); k+=1; continue
+        if l.startswith('|'):
+            close(); rows=[]
+            while k<len(lines) and lines[k].startswith('|'): rows.append([c.strip() for c in lines[k].strip('|').split('|')]); k+=1
+            rows=[r for r in rows if not all(re.fullmatch(r':?-+:?',c) for c in r)]
+            out.append('<table>'+''.join('<tr>'+''.join(f'<{"th" if ri==0 else "td"}>{inline(c)}</{"th" if ri==0 else "td"}>' for c in r)+'</tr>' for ri,r in enumerate(rows))+'</table>'); continue
+        m=re.match(r'^(\d+)\. (.*)',l)
+        if m:
+            if inlist!='ol': close(); out.append('<ol>'); inlist='ol'
+            out.append(f'<li>{inline(m.group(2))}</li>'); k+=1; continue
+        m=re.match(r'^[-・] (.*)',l)
+        if m:
+            if inlist!='ul': close(); out.append('<ul>'); inlist='ul'
+            out.append(f'<li>{inline(m.group(1))}</li>'); k+=1; continue
+        if l.startswith('> '): close(); out.append(f'<blockquote>{inline(l[2:])}</blockquote>'); k+=1; continue
+        if l.strip()=='---': close(); out.append('<hr>'); k+=1; continue
+        if not l.strip(): close(); k+=1; continue
+        close(); out.append(f'<p>{inline(l)}</p>'); k+=1
+    close(); return '\n'.join(out)
+readme=(root/'README.md').read_text()
+guide=f'''<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>仕入れマップ 手引き</title><meta name="theme-color" content="#8a5a2b"><link rel="icon" href="./icon-192.png">
+<style>
+:root{{--bg:#f6f3ee;--surface:#fff;--ink:#2b2420;--muted:#7a6f66;--line:#e6dfd5;--accent:#8a5a2b;--accent-soft:#f1e6d8;--code:#f3eee6}}
+@media (prefers-color-scheme:dark){{:root{{--bg:#1c1917;--surface:#26211e;--ink:#f1ebe4;--muted:#a79c92;--line:#3a332e;--accent:#d9a86c;--accent-soft:#3a2d20;--code:#2e2824}}}}
+body{{margin:0;background:var(--bg);color:var(--ink);font:16px/1.75 -apple-system,BlinkMacSystemFont,"Hiragino Sans","Noto Sans JP",sans-serif;-webkit-text-size-adjust:100%}}
+.wrap{{max-width:720px;margin:0 auto;padding:20px 16px 60px}}
+.top{{display:flex;align-items:center;gap:12px;margin-bottom:8px}}.top img{{width:44px;height:44px;border-radius:11px}}.top a{{color:var(--accent);text-decoration:none;font-weight:700;margin-left:auto;font-size:14px}}
+h1{{font-size:24px;margin:8px 0 4px;line-height:1.3}}h2{{font-size:19px;margin:36px 0 8px;padding-top:14px;border-top:1px solid var(--line)}}h3{{font-size:16px;margin:22px 0 6px}}h4{{font-size:15px;margin:16px 0 4px;color:var(--muted)}}
+p{{margin:8px 0}}ul,ol{{padding-left:22px;margin:6px 0}}li{{margin:3px 0}}a{{color:var(--accent)}}
+code{{font:13px ui-monospace,SFMono-Regular,Menlo,monospace;background:var(--code);padding:1px 6px;border-radius:6px;word-break:break-all}}
+pre{{background:var(--code);border:1px solid var(--line);border-radius:12px;padding:12px 14px;overflow-x:auto;font:13px/1.6 ui-monospace,SFMono-Regular,Menlo,monospace}}
+table{{border-collapse:collapse;width:100%;font-size:14px;margin:8px 0;display:block;overflow-x:auto}}th,td{{border:1px solid var(--line);padding:6px 9px;text-align:left;vertical-align:top}}th{{background:var(--accent-soft)}}
+blockquote{{margin:10px 0;padding:8px 14px;border-left:4px solid var(--accent);background:var(--surface);border-radius:0 10px 10px 0;color:var(--muted)}}hr{{border:0;border-top:1px solid var(--line);margin:28px 0}}
+.foot{{margin-top:40px;color:var(--muted);font-size:13px}}
+</style></head><body><div class="wrap">
+<div class="top"><img src="./icon-192.png" alt=""><span style="font-weight:700">仕入れマップ</span><a href="./">← アプリへ</a></div>
+{md2html(readme)}
+<div class="foot">この手引きは README.md から自動で作っています（版 {ver}）。</div>
+</div></body></html>'''
+(root/'guide.html').write_text(guide)
+
+# ---- 4. sw.js ----
+assets=['./','./index.html','./guide.html','./leaflet.js','./leaflet.css','./data/stores.json','./manifest.webmanifest','./icon-180.png','./icon-192.png','./icon-512.png','./icon-512-maskable.png']
+swp=root/'sw.js'; t=swp.read_text()
+t=re.sub(r'const C="sedori-map-[^"]*"',f'const C="sedori-map-{ver}"',t)
+t=re.sub(r'const ASSETS=\[[^\]]*\]','const ASSETS='+json.dumps(assets),t)
+swp.write_text(t)
+print('built',ver,f'{len(stores)}店 / {len(chains)}チェーン')
