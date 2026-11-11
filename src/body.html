@@ -137,6 +137,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
 .sheet h2{font-size:21px;overflow-wrap:anywhere} .sheet .addr{color:var(--muted);font-size:14px;margin:2px 0 8px;overflow-wrap:anywhere}
 .stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:12px 0} .stat{background:var(--bg);border-radius:12px;padding:10px 12px} .stat .k{font-size:12px;color:var(--muted)} .stat .v{font-family:var(--font-num);font-size:18px;font-weight:500}
 .field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px} .field label{font-size:13px;color:var(--muted)}
+details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} details.more summary{font-size:14px;font-weight:700;color:var(--accent);cursor:pointer;min-height:32px;display:flex;align-items:center} details.more[open] summary{margin-bottom:8px}
 .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:16px 0 8px} .hd h3{font-size:14px;color:var(--muted);font-weight:700;letter-spacing:.04em}
 .close{position:absolute;right:max(12px,env(safe-area-inset-right,0px));top:10px;width:36px;height:36px;border-radius:50%;background:var(--chip);display:grid;place-items:center} .close svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round}
 .datewrap{display:flex;gap:8px;align-items:center;flex-wrap:wrap} .datewrap input[type=date]{width:auto;flex:1;min-width:150px} .datewrap .btn{flex:0 0 auto}
@@ -178,54 +179,54 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
 
     <section class="view" id="view-settei" hidden>
       <div class="section">
-        <h2>店舗データ</h2>
-        <div id="chainStats"></div>
-        <div class="kv"><span>自分で足した店</span><span class="num" id="statCustom">0</span></div>
-        <div class="kv"><span>訪問記録</span><span class="num" id="statVisits">0</span></div>
-        <p class="note" style="margin-top:8px">店舗・住所・営業時間は各チェーンの公式サイトなど、上に書いた出どころから取ったものです。営業時間は変わることがあるので、行く前に店舗詳細の「公式ページ」も確認を。臨時休業・祝日は反映していません。チェーンのチップを押すと表示から外せます。</p>
+        <h2>出発地</h2>
+        <p class="note">位置情報を使わない時は、ここの場所から近い順に並びます。地名・駅名・住所で入れられます。</p>
+        <input id="homeAddr" placeholder="例：岐阜駅／岐阜県岐阜市○○1-1" autocomplete="off">
+        <div class="row" style="margin-top:8px"><button class="btn" id="btnHomeSave">保存する</button><span class="note" id="homeStat"></span></div>
       </div>
       <div class="section">
-        <h2>出発地（位置情報が使えない時の起点）</h2>
-        <input id="homeAddr" placeholder="例：岐阜県岐阜市○○1-1" autocomplete="off">
-        <div class="row" style="margin-top:8px"><button class="btn" id="btnHomeSave">保存して位置を取る</button><span class="note" id="homeStat"></span></div>
-      </div>
-      <div class="section">
-        <h2>店を足す（他のチェーン・個人店など）</h2>
+        <h2>店を足す</h2>
+        <p class="note">入っていない店（他のチェーン・個人店）を自分で足せます。地図には旗で出ます。</p>
         <div class="field"><label for="cName">店名</label><input id="cName" autocomplete="off"></div>
         <div class="field"><label for="cAddr">住所</label><input id="cAddr" autocomplete="off"></div>
         <div class="field"><label for="cHours">営業時間（例 10:00～20:00）</label><input id="cHours" autocomplete="off"></div>
-        <div class="field"><label for="cBrand">店の種類（任意・例 古本市場）</label><input id="cBrand" autocomplete="off" list="brandList"><datalist id="brandList"></datalist></div>
+        <div class="field"><label for="cBrand">店の種類（書かなくてもよい・例 古本市場）</label><input id="cBrand" autocomplete="off" list="brandList"><datalist id="brandList"></datalist></div>
         <div class="row"><button class="btn primary" id="btnAddCustom">追加</button><span class="note" id="customMsg"></span></div>
-        <div class="hd"><h3>まとめて足す</h3></div>
-        <p class="note">1行に1店、「店名，住所，営業時間，種類」をカンマ区切りで。表計算からコピペできます。住所から位置を取るので1店1秒ほどかかります。</p>
-        <textarea id="bulkText" placeholder="古本市場 ○○店, 岐阜県岐阜市○○1-1, 10:00～21:00, 古本市場&#10;駿河屋 △△店, 愛知県名古屋市△△2-2, 11:00～20:00, 駿河屋" style="min-height:80px"></textarea>
-        <div class="row" style="margin-top:8px"><button class="btn" id="btnBulkAdd">まとめて追加</button><span class="note" id="bulkMsg"></span></div>
+        <details class="more"><summary>たくさんの店をまとめて足す</summary>
+          <p class="note">1行に1店、「店名，住所，営業時間，種類」をカンマで区切って書きます。表計算からそのまま貼れます。1店につき1秒ほどかかります。</p>
+          <textarea id="bulkText" placeholder="古本市場 ○○店, 岐阜県岐阜市○○1-1, 10:00～21:00, 古本市場&#10;駿河屋 △△店, 愛知県名古屋市△△2-2, 11:00～20:00, 駿河屋" style="min-height:80px"></textarea>
+          <div class="row" style="margin-top:8px"><button class="btn" id="btnBulkAdd">まとめて追加</button><span class="note" id="bulkMsg"></span></div>
+        </details>
       </div>
-      <div class="section">
+      <div class="section" id="hiddenSec" hidden>
         <h2>非表示にした店</h2>
         <div id="hiddenList" class="note">なし</div>
       </div>
       <div class="section">
-        <h2>控え（バックアップ）</h2>
-        <p class="note">訪問記録・足した店・設定はこのiPhoneの中だけ。下の文字列をメモに控えておけば戻せます。</p>
+        <h2>記録の控え</h2>
+        <p class="note">訪問記録・お気に入り・足した店は、このスマホの中にだけ入っています。機種変更の前に控えを作って、メモなどに貼っておいてください。</p>
         <div class="row"><button class="btn" id="btnExport">控えを作る</button><button class="btn" id="btnCopyExport" hidden>コピー</button></div>
         <textarea id="exportText" hidden readonly style="margin-top:8px;font-family:var(--font-num);font-size:12px"></textarea>
-        <div class="hd"><h3>控えから戻す</h3></div>
-        <textarea id="restoreText" placeholder="控えの文字列をここに貼る" style="min-height:70px"></textarea>
-        <div class="row" style="margin-top:8px"><button class="btn warn" id="btnRestore">貼った内容で置き換える</button></div>
-        <div id="restoreMsg" class="note" style="margin-top:6px"></div>
+        <details class="more"><summary>控えから戻す</summary>
+          <textarea id="restoreText" placeholder="控えの文字列をここに貼る" style="min-height:70px"></textarea>
+          <div class="row" style="margin-top:8px"><button class="btn warn" id="btnRestore">貼った内容で置き換える</button></div>
+          <div id="restoreMsg" class="note" style="margin-top:6px"></div>
+        </details>
+      </div>
+      <div class="section">
+        <h2>入っている店</h2>
+        <div id="chainStats"></div>
+        <div class="kv" id="rowTicket" hidden><span>ブックチケットが使える店<span class="small muted" id="statTicketAt"></span></span><span class="num" id="statTicket">0</span></div>
+        <div class="kv"><span>自分で足した店</span><span class="num" id="statCustom">0</span></div>
+        <div class="kv"><span>訪問記録</span><span class="num" id="statVisits">0</span></div>
+        <p class="note" style="margin-top:8px">営業時間は変わることがあります。祝日や臨時休業は入っていません。行く前に、店の詳細の「公式ページ」で確かめてください。</p>
       </div>
       <div class="section">
         <h2>このアプリについて</h2>
-        <p class="note"><b>仕入れマップ</b>は、本せどりの店舗回りを楽にするために作った無料アプリです（制作：納豆）。ログイン不要・広告なし・誰でも使えます。</p>
-        <p class="note">・訪問記録や設定は<b>この端末の中だけ</b>に保存され、どこにも送信されません。機種変更の前に「控えを作る」で控えを。<br>・店舗情報は各チェーンの公式サイトなどを元にしています。営業時間・休業は変わることがあるので、行く前に店舗詳細の「公式ページ」で確認してください。<br>・位置情報は「近い順」と地図の現在地にだけ使い、保存も送信もしません。</p>
-        <div class="row" style="margin-top:8px"><a class="btn soft" href="./guide.html" target="_blank" rel="noopener">使い方と改造の手引き</a><a class="btn" href="https://github.com/naitou0121/sedori-map" target="_blank" rel="noopener">中身（GitHub）</a></div>
-        <p class="note" style="margin-top:8px">中身はすべて公開（MITライセンス）。自分用に書き換えたり、他のチェーンの店を入れた自分の版を配ったりして構いません。やり方は手引きに。</p>
-      </div>
-      <div class="section">
-        <h2>診断</h2>
+        <p class="note"><b>仕入れマップ</b>は、本せどりの店回りを楽にする無料アプリです（制作：納豆）。ログインも広告もありません。記録はこのスマホの中だけに残り、どこにも送られません。位置情報は近い順の計算と地図の現在地にだけ使います。</p>
+        <div class="row" style="margin:8px 0 4px"><a class="btn soft" href="./guide.html" target="_blank" rel="noopener">使い方を読む</a></div>
         <div class="kv"><span>アプリの版</span><span class="num" id="statVer">—</span></div>
-        <div class="kv"><span>最新の版の確認</span><button class="linkish" id="btnCheckUpdate">今すぐ確認</button></div>
+        <div class="kv"><span>新しい版が出ていないか</span><button class="linkish" id="btnCheckUpdate">今すぐ確かめる</button></div>
         <div class="kv"><span>位置情報</span><span id="statLoc">—</span></div>
       </div>
     </section>
@@ -371,7 +372,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
     if(view==='chikaku') renderNear();
     if(view==='chizu') renderMap();
     if(view==='rireki'){ $('#hdrSub').textContent=`訪問記録 ${state.visits.length}件`; renderHist(); }
-    if(view==='settei'){ $('#hdrSub').textContent='店舗データ・出発地・控え'; renderSettings(); }
+    if(view==='settei'){ $('#hdrSub').textContent='出発地・店を足す・記録の控え'; renderSettings(); }
   }
 
   // ---- 近く ----
@@ -481,9 +482,11 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
 
   // ---- 設定 ----
   function renderSettings(){
-    $('#chainStats').innerHTML=chains.map(c=>{ const n=stores.filter(s=>s.chain===c.id).length, off=state.prefs.chainsOff.includes(c.id); return `<div class="kv"><span><span class="tag chain" style="--c:${esc(c.color)}">${esc(c.short||c.name)}</span> ${esc(c.name)}<span class="small muted"> ・ ${esc(c.fetchedAt||'')}${c.source?' ・ '+esc(c.source):''}</span></span><span class="num">${n}店 ${chains.length>1?`<button class="linkish" data-chain="${esc(c.id)}">${off?'表示する':'外す'}</button>`:''}</span></div>`; }).join('')||'<div class="note">店データがまだ読めていません</div>';
+    $('#chainStats').innerHTML=chains.map(c=>{ const n=stores.filter(s=>s.chain===c.id).length, off=state.prefs.chainsOff.includes(c.id); return `<div class="kv"><span><span class="tag chain" style="--c:${esc(c.color)}">${esc(c.short||c.name)}</span> ${esc(c.name)}<span class="small muted">${c.fetchedAt?' ・ '+esc(fmt(c.fetchedAt))+' 時点':''}</span></span><span class="num">${n}店 ${chains.length>1?`<button class="linkish" data-chain="${esc(c.id)}">${off?'表示する':'外す'}</button>`:''}</span></div>`; }).join('')||'<div class="note">店データがまだ読めていません</div>';
     document.querySelectorAll('#chainStats [data-chain]').forEach(b=>b.addEventListener('click',()=>{ toggleChain(b.dataset.chain); renderSettings(); }));
     $('#brandList').innerHTML=[...new Set(state.custom.map(s=>s.brand).filter(Boolean))].map(b=>`<option value="${esc(b)}">`).join('');
+    $('#hiddenSec').hidden=!state.hidden.filter(id=>byId(id)).length;
+    if(ticketMeta){ $('#rowTicket').hidden=false; $('#statTicket').textContent=stores.filter(x=>x.tk).length+'店'; $('#statTicketAt').textContent=ticketMeta.fetchedAt?` ・ ${fmt(ticketMeta.fetchedAt)} 時点`:''; }
     $('#statCustom').textContent=state.custom.length; $('#statVisits').textContent=state.visits.length; if(document.activeElement!==$('#homeAddr')) $('#homeAddr').value=state.home?.address||''; $('#homeStat').textContent=state.home?(hasGeo(state.home)?'位置あり':'位置が取れていません'):'未設定'; $('#statVer').textContent=document.querySelector('meta[name=app-version]')?.content||'—'; $('#statLoc').textContent={ok:'取得できています',denied:'許可されていません',timeout:'応答なし（時間切れ）',unavailable:'場所が取れません',asking:'確認中',idle:'未取得',none:'この端末では使えません',stale:'前回の位置を使用',error:'エラー'}[locState]||locState;
     const hl=$('#hiddenList'); const hs=state.hidden.map(byId).filter(Boolean); hl.innerHTML=hs.length?hs.map(s=>`<div class="kv"><span>${esc(s.name)}</span><button class="linkish" data-unhide="${s.id}">戻す</button></div>`).join(''):'なし'; hl.querySelectorAll('[data-unhide]').forEach(b=>b.addEventListener('click',()=>{ state.hidden=state.hidden.filter(x=>x!==b.dataset.unhide); save(); renderSettings(); })); }
   $('#btnHomeSave').addEventListener('click',async()=>{ const a=$('#homeAddr').value.trim(); if(!a){ state.home=null; save(); renderSettings(); return; } $('#homeStat').textContent='取得中…'; const g=await geocode(a); state.home=g?{address:a,lat:g.lat,lng:g.lng}:{address:a}; save(); renderSettings(); toast(g?'出発地を保存しました':'住所から位置が取れませんでした'); });
