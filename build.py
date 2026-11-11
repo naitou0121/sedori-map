@@ -48,7 +48,20 @@ if tf.exists():
         hit+=1
     ticket_meta={'name':tj.get('name','ブックチケット'),'fetchedAt':tj.get('fetchedAt',''),'count':hit,'source':tj.get('source',''),'open':tj.get('open','https://www.sub-ticket.jp/mypage/'),'regions':{r['name']:r['id'] for r in tj.get('regions',[])}}
     print(f"  ブックチケット: {hit}/{len(tj['stores'])}店に印" + (f" ・ 合わなかった店 {miss}" if miss else ''))
-(root/'data/stores.json').write_text(json.dumps({'builtAt':datetime.date.today().isoformat(),'chains':chains,'count':len(stores),'ticket':ticket_meta,'stores':stores},ensure_ascii=False,separators=(',',':')))
+# ---- 1.6 駐車場とアクセス（data/shopinfo.json＝公式の店舗ページの表記そのまま）→ pk / ac に入れる ----
+parking_meta=None
+pf=root/'data/shopinfo.json'
+if pf.exists():
+    pj=json.loads(pf.read_text()); info=pj.get('stores',{}); n=0; na=0
+    for s in stores:
+        s.pop('pk',None); s.pop('ac',None); v=info.get(s['id']) or {}
+        pk=(v.get('pk') or '').strip()
+        ac=[l for l in (v.get('ac') or []) if not l.startswith('【車')][:3]   # 車の道順は長いので載せない（電車・地下鉄・徒歩・バスの行だけ）
+        if pk: s['pk']=pk; n+=1
+        if ac: s['ac']=ac; na+=1
+    parking_meta={'fetchedAt':pj.get('fetchedAt',''),'count':n,'access':na,'source':pj.get('source','')}
+    print(f"  駐車場: {n}店 ・ アクセス: {na}店に表記あり")
+(root/'data/stores.json').write_text(json.dumps({'builtAt':datetime.date.today().isoformat(),'chains':chains,'count':len(stores),'ticket':ticket_meta,'parking':parking_meta,'stores':stores},ensure_ascii=False,separators=(',',':')))
 
 # ---- 2. index.html ----
 body=(root/'src/body.html').read_text()
