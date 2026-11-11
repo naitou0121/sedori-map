@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="仕入れマップ">
 <meta name="theme-color" content="#8a5a2b">
-<meta name="app-version" content="202611111621">
+<meta name="app-version" content="202611111625">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" href="./icon-192.png">
@@ -63,6 +63,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
 .chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none} .chips::-webkit-scrollbar{display:none}
 .chip{flex:0 0 auto;min-height:36px;padding:0 14px;border-radius:999px;background:var(--chip);font-size:14px;font-weight:500;white-space:nowrap}
 .chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-fg)}
+a.chip.go{display:inline-flex;align-items:center;gap:6px;text-decoration:none;background:var(--ok);color:#fff;font-weight:700} a.chip.go svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
 .toolbar{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
 .search{position:relative} .search input{padding-left:38px}
 .search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:18px;height:18px;stroke:var(--muted);fill:none;stroke-width:2;stroke-linecap:round}
@@ -313,7 +314,8 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   // ---- ブックチケット（対象店の印は data/ticket.json から）----
   const hasTicket=()=>!!ticketMeta&&stores.some(s=>s.tk);
   const ticketMark=s=>s.tk?'<span class="tkmark">チケット可</span>':'';
-  const ticketChip=()=>hasTicket()?`<button class="chip" data-k="tk:1" aria-pressed="${String(!!state.prefs.ticket)}">チケットが使える店</button>`:'';
+  const ticketOpen=()=>hasTicket()?`<a class="chip go" href="${esc((ticketMeta&&ticketMeta.open)||'https://www.sub-ticket.jp/mypage/')}" target="_blank" rel="noopener">チケットを開く</a>`:'';
+  const ticketChip=()=>hasTicket()?`<button class="chip" data-k="tk:1" aria-pressed="${String(!!state.prefs.ticket)}">チケット可</button>`:'';
   const visitsOf=id=>state.visits.filter(v=>v.storeId===id).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
   const lastVisit=id=>visitsOf(id)[0]?.date||null;
   const visitedToday=id=>state.visits.some(v=>v.storeId===id&&v.date===todayStr());
@@ -414,8 +416,8 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
       $('#locPlaceGo').addEventListener('click',go); $('#locPlace').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); go(); } });
     }
     // 絞り込み：お気に入り／チケット（＋チェーンが2つ以上ある時だけチェーン）
-    const f=$('#nearFilters'); f.innerHTML=favChip()+ticketChip()+chainChips();
-    f.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{ const [k,v]=b.dataset.k.split(':'); if(k==='chain') toggleChain(v); else if(k==='tk') pr.ticket=!pr.ticket; else if(k==='fav') pr.fav=!pr.fav; nearLimit=40; save(); renderNear(); }));
+    const f=$('#nearFilters'); f.innerHTML=favChip()+ticketChip()+ticketOpen()+chainChips();
+    f.querySelectorAll('button.chip').forEach(b=>b.addEventListener('click',()=>{ const [k,v]=b.dataset.k.split(':'); if(k==='chain') toggleChain(v); else if(k==='tk') pr.ticket=!pr.ticket; else if(k==='fav') pr.fav=!pr.fav; nearLimit=40; save(); renderNear(); }));
     // 県：先頭の「近く」は県で絞らず、いま居る所から近い順。県は近い順に並べる
     const base=visible(); const km0={}; if(org) withDist(base,org).forEach(r=>{ const p=r.s.pref||'その他'; if(km0[p]==null) km0[p]=r.km; });
     const prefs=[...new Set(base.map(s=>s.pref||'その他'))].sort((a,b)=>org?((km0[a]??1e9)-(km0[b]??1e9)):a.localeCompare(b,'ja'));
@@ -487,7 +489,7 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   function drawPins(){ if(!map) return; layer.clearLayers(); const b=map.getBounds(); const list=visible().filter(s=>b.contains([s.lat,s.lng])); const org=origin(); list.forEach(s=>{ const g=gap(s); const st=openStatus(s); const cls=(g.k==='ok'?'':g.k==='over'||g.k==='soon'?'old':'none')+(st.k==='closed'||st.k==='before'?' closed':''); const ch=chainOf(s); const m=L.marker([s.lat,s.lng],{icon:s.builtin?pinIcon(cls,chains.length>1&&ch?`<i class="ch" style="--c:${esc(ch.color)}"></i>`:''):flagIcon(cls)}).addTo(layer); m.bindPopup(popupHTML(s),{closeButton:false,maxWidth:280}); m.on('popupopen',()=>{ selectedId=s.id; bindPopup(); }); }); if(me){ L.marker([me.lat,me.lng],{icon:L.divIcon({className:'',html:'<div class="pin me"></div>',iconSize:[18,18],iconAnchor:[9,9]}),interactive:false}).addTo(layer); }
     const cnt={ok:0,old:0,none:0}; list.forEach(s=>{ const k=gap(s).k; cnt[k==='ok'?'ok':(k==='over'||k==='soon')?'old':'none']++; });
     $('#mapFoot').innerHTML=`<div class="legend"><span><i class="dot"></i>2週間以内</span><span><i class="dot old"></i>それより前</span><span><i class="dot none"></i>未訪問</span><span>薄い＝今は閉店</span>${state.custom.length?`<span><i class="lg">${FLAG.replace('class="fl"','fill="none" stroke="currentColor" stroke-width="2"').replace('class="po"','stroke="currentColor" stroke-width="2"')}</i>旗＝自分で足した店</span>`:''}${me?'<span><i class="dot me"></i>現在地</span>':''}</div><div class="note">この範囲に ${list.length}店（2週間以内 ${cnt.ok} ・ 前に ${cnt.old} ・ 未訪問 ${cnt.none}）${org?'':' ・ 現在地なし'}</div>`; }
-  function renderMap(){ ensureMap(); if(!map) return; const pr=state.prefs; $('#hdrSub').textContent='ピンを押すと店の情報'; const mc=$('#mapChips'); mc.innerHTML=favChip()+ticketChip()+chainChips()+'<button class="chip" id="mapMe">現在地へ</button>'; mc.querySelectorAll('.chip[data-k]').forEach(b=>b.addEventListener('click',()=>{ const [k,v]=b.dataset.k.split(':'); if(k==='tk') pr.ticket=!pr.ticket; else if(k==='fav') pr.fav=!pr.fav; else toggleChain(v); save(); drawPins(); renderMap(); })); $('#mapMe').addEventListener('click',async()=>{ const p=await currentPos(true); if(p) map.setView([p.lat,p.lng],12); else toast('現在地が取れません'); }); setTimeout(()=>{ map.invalidateSize(); drawPins(); },50); }
+  function renderMap(){ ensureMap(); if(!map) return; const pr=state.prefs; $('#hdrSub').textContent='ピンを押すと店の情報'; const mc=$('#mapChips'); mc.innerHTML=favChip()+ticketChip()+ticketOpen()+chainChips()+'<button class="chip" id="mapMe">現在地へ</button>'; mc.querySelectorAll('.chip[data-k]').forEach(b=>b.addEventListener('click',()=>{ const [k,v]=b.dataset.k.split(':'); if(k==='tk') pr.ticket=!pr.ticket; else if(k==='fav') pr.fav=!pr.fav; else toggleChain(v); save(); drawPins(); renderMap(); })); $('#mapMe').addEventListener('click',async()=>{ const p=await currentPos(true); if(p) map.setView([p.lat,p.lng],12); else toast('現在地が取れません'); }); setTimeout(()=>{ map.invalidateSize(); drawPins(); },50); }
   function bindPopup(){ document.querySelectorAll('.leaflet-popup [data-pop]').forEach(b=>{ if(b._bound) return; b._bound=true; b.addEventListener('click',()=>{ const id=b.dataset.id; if(b.dataset.pop==='open'){ map.closePopup(); openSheet(id); } else if(b.dataset.pop==='visit'){ recordVisit(id); map.closePopup(); drawPins(); } else { togglePlan(id); map.closePopup(); drawPins(); } }); }); }
 
   // ---- 履歴 ----
