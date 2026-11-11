@@ -56,7 +56,7 @@ if pf.exists():
     for s in stores:
         s.pop('pk',None); s.pop('ac',None); v=info.get(s['id']) or {}
         pk=(v.get('pk') or '').strip()
-        ac=[l for l in (v.get('ac') or []) if not l.startswith('【車')][:3]   # 車の道順は長いので載せない（電車・地下鉄・徒歩・バスの行だけ）
+        ac=[l for l in (v.get('ac') or []) if not re.match(r'【(?:お)?(?:車|自動車)',l)][:3]   # 車の道順は長いので載せない（電車・地下鉄・徒歩・バスの行だけ）
         if pk: s['pk']=pk; n+=1
         if ac: s['ac']=ac; na+=1
     parking_meta={'fetchedAt':pj.get('fetchedAt',''),'count':n,'access':na,'source':pj.get('source','')}

@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="仕入れマップ">
 <meta name="theme-color" content="#8a5a2b">
-<meta name="app-version" content="202611111706">
+<meta name="app-version" content="202611111732">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" href="./icon-192.png">
@@ -320,8 +320,8 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   const pkTag=s=>{ const k=pkInfo(s); if(!k.v&&!k.note) return ''; if(k.none&&!k.note) return '<span class="tag pk no">駐車場なし</span>'; const base=k.none?'駐車場':`P${k.num?' '+k.num+'台':''}`; return `<span class="tag pk${k.paid?' paid':''}">${base}${k.paid?'・有料':k.free?'・無料':''}</span>`; };
   // ---- 駅から：公式ページの「アクセス【電車】」から、駅名と徒歩の分数を拾って札にする ----
   // 書き方は店ごとにばらばら（【電車】【地下鉄】【徒歩（○○駅から）】【バス】…）。「徒歩N分」とその手前の駅名を探す。分数が無い時は、電車・地下鉄・徒歩の行に出てくる駅名だけ出す
-  const stName=t=>{ const m=t.match(/[^\s、。,，「」『』（）()【】・／\/→〜~]{1,14}?駅/g); if(!m) return ''; return m.pop().replace(/^.*線/,'').replace(/^(?:最寄りの?|最寄|地下鉄|市電)/,''); };
-  const walkOf=s=>{ const ls=(s.ac||[]).map(z2h); for(const l of ls){ if(/^【[^】]*バス/.test(l)) continue; const w=l.match(/徒歩(?:で|にて)?(?:約|およそ)?\s*(\d+)\s*分/); if(w){ return {st:stName(l.slice(0,w.index))||stName(l),min:+w[1]}; } } for(const l of ls){ if(/^【(?:電車|地下鉄|徒歩|JR|私鉄|鉄道)/.test(l)){ const st=stName(l); if(st) return {st,min:null}; } } return null; };
+  const stName=t=>{ const m=t.match(/[^\s、。,，「」『』（）()【】・／\/→〜~]{1,14}?駅/g); if(!m) return ''; let n=m.pop().replace(/^.*線/,'').replace(/^.*(?:を|は|へ|:|から|及び|停留所の|広電の|市電|通りぬけ|出て)/,'').replace(/^(?:最寄りの?|最寄|地下鉄)/,''); if(/店|^[ぁ-ん]{0,3}駅$/.test(n)||n.length<2) n=''; return n; };
+  const walkOf=s=>{ const ls=(s.ac||[]).map(z2h); for(const l of ls){ if(/^【[^】]*バス/.test(l)&&!/^【[^】]*(?:電車|徒歩|地下鉄|JR)/.test(l)) continue; const w=l.match(/徒歩(?:で|にて)?(?:約|およそ)?\s*(\d+)\s*分/); if(w){ return {st:stName(l.slice(0,w.index))||stName(l),min:+w[1]}; } } for(const l of ls){ if(/^【(?:電車|地下鉄|徒歩|JR|私鉄|鉄道)/.test(l)){ const st=stName(l); if(st) return {st,min:null}; } } return null; };
   const stTag=s=>{ const w=walkOf(s); return w?`<span class="tag st">${w.min!=null?`${esc(w.st||'駅')} 徒歩${w.min}分`:`最寄り ${esc(w.st)}`}</span>`:''; };
   const hasTicket=()=>!!ticketMeta&&stores.some(s=>s.tk);
   const ticketMark=s=>s.tk?'<span class="tkmark">チケット可</span>':'';
