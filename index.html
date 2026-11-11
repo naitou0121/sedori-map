@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="仕入れマップ">
 <meta name="theme-color" content="#8a5a2b">
-<meta name="app-version" content="202611111512">
+<meta name="app-version" content="202611111514">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" href="./icon-192.png">
@@ -329,7 +329,12 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
   const R=6371; const dist=(a,b)=>{ const dLat=(b.lat-a.lat)*Math.PI/180, dLng=(b.lng-a.lng)*Math.PI/180; const x=Math.sin(dLat/2)**2+Math.cos(a.lat*Math.PI/180)*Math.cos(b.lat*Math.PI/180)*Math.sin(dLng/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
   function orderStops(start,pts){ if(pts.length<2) return pts.slice(); let rest=pts.slice(),out=[],cur=start; if(!cur){ out.push(rest.shift()); cur=out[0]; } while(rest.length){ let bi=0,bd=Infinity; rest.forEach((p,i)=>{ const d=dist(cur,p); if(d<bd){bd=d;bi=i;} }); cur=rest.splice(bi,1)[0]; out.push(cur); } const path=start?[start,...out]:out; let imp=true,g=0; while(imp&&g++<50){ imp=false; for(let i=1;i<path.length-1;i++) for(let k=i+1;k<path.length;k++){ const a=path[i-1],b=path[i],c=path[k],d=path[k+1]; const bef=dist(a,b)+(d?dist(c,d):0), aft=dist(a,c)+(d?dist(b,d):0); if(aft+1e-9<bef){ const seg=path.slice(i,k+1).reverse(); path.splice(i,k-i+1,...seg); imp=true; } } } return start?path.slice(1):path; }
   let me=null, meAt=0, locState='idle', locErr='';
-  const currentPos=(force)=>new Promise(res=>{ if(!force&&me&&Date.now()-meAt<60000) return res(me); if(!navigator.geolocation){ locState='none'; return res(null); } locState='asking'; let done=false; const fin=v=>{ if(!done){ done=true; res(v); } }; setTimeout(()=>{ if(!done){ locState=me?'stale':'timeout'; fin(me); } },8000); try{ navigator.geolocation.getCurrentPosition(p=>{ me={lat:p.coords.latitude,lng:p.coords.longitude,name:'現在地'}; meAt=Date.now(); locState='ok'; fin(me); },e=>{ locState='denied'; locErr=e&&e.message||''; fin(me); },{timeout:7500,maximumAge:30000,enableHighAccuracy:true}); }catch(e){ locState='error'; fin(me); } });
+  // 現在地：まず高精度で試し、時間切れ・測位不可なら粗い測位でもう一度。エラーの種類を分けて持つ（1=許可なし 2=測位できない 3=時間切れ）
+  const currentPos=(force)=>new Promise(res=>{ if(!force&&me&&Date.now()-meAt<60000) return res(me); if(!navigator.geolocation){ locState='none'; return res(null); } locState='asking'; locErr=''; let done=false; const fin=v=>{ if(!done){ done=true; res(v); } };
+    setTimeout(()=>{ if(!done){ locState=me?'stale':'timeout'; fin(me); } },20000);
+    const ok=p=>{ me={lat:p.coords.latitude,lng:p.coords.longitude,name:'現在地'}; meAt=Date.now(); locState='ok'; fin(me); };
+    const ng=e=>{ const c=e&&e.code; locErr=`${c||''} ${e&&e.message||''}`.trim(); locState=c===1?'denied':c===3?'timeout':'unavailable'; fin(me); };
+    try{ navigator.geolocation.getCurrentPosition(ok,e=>{ if(e&&e.code===1) return ng(e); try{ navigator.geolocation.getCurrentPosition(ok,ng,{timeout:10000,maximumAge:300000,enableHighAccuracy:false}); }catch(x){ ng(e); } },{timeout:7000,maximumAge:30000,enableHighAccuracy:true}); }catch(e){ locState='error'; fin(me); } });
   // 位置情報の直し方（ブラウザごと）。Webアプリから端末の「設定」は開けないので、押す場所を文で出す
   function locHelp(){
     const ua=navigator.userAgent||''; const ios=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
@@ -376,13 +381,15 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
     if(!me){
       // 位置情報が取れない時：使っているブラウザに合わせた直し方を出し、その場で地名から測れるようにする
       const hm=home(); const st=locState;
-      const msg=st==='asking'?'現在地を確認しています…':st==='denied'?'位置情報が許可されていません。':st==='none'?'この端末では位置情報が使えません。':'現在地が取れていません。';
+      const msg=st==='asking'?'現在地を確認しています…':st==='denied'?'位置情報が許可されていません。':st==='none'?'この端末では位置情報が使えません。':(st==='timeout'||st==='unavailable')?'位置情報は使える状態ですが、場所が取れませんでした。':'現在地が取れていません。';
+      const why=(st==='timeout'||st==='unavailable')?'屋内や地下だと時間がかかります。窓際や外でもう一度「現在地を取る」を押すか、下の欄に地名を入れてください。':'';
       lb.innerHTML=`<div class="banner"><div><b>${msg}</b>${hm?` いまは出発地（${esc(state.home.address||'')}）から測っています。`:''}</div>
         ${st==='denied'?`<div class="small" style="margin-top:6px">${locHelp()}</div>`:''}
+        ${why?`<div class="small" style="margin-top:6px">${why}</div>`:''}${locErr&&st!=='asking'?`<div class="small muted" style="margin-top:4px">端末からの返事：${esc(locErr)}</div>`:''}
         <div class="row"><button class="btn soft" id="locRetry">現在地を取る</button></div>
         <div class="small" style="margin-top:10px">位置情報を使わずに、地名から測ることもできます</div>
         <div class="datewrap"><input id="locPlace" placeholder="例：岐阜駅／名古屋市中区栄" autocomplete="off" enterkeyhint="search"><button class="btn soft" id="locPlaceGo">ここから測る</button></div></div>`;
-      $('#locRetry').addEventListener('click',async()=>{ await currentPos(true); render(); });
+      $('#locRetry').addEventListener('click',async()=>{ const b=$('#locRetry'); b.disabled=true; b.textContent='確認しています…（最大20秒）'; await currentPos(true); render(); });
       const go=async()=>{ const a=$('#locPlace').value.trim(); if(!a) return; const btn=$('#locPlaceGo'); btn.disabled=true; btn.textContent='探しています…'; const g=await geocode(a); if(g){ state.home={address:a,lat:g.lat,lng:g.lng}; save(); toast(`${a} から測ります`); render(); } else { btn.disabled=false; btn.textContent='ここから測る'; toast('その地名から場所が取れませんでした。住所や駅名で試してください'); } };
       $('#locPlaceGo').addEventListener('click',go); $('#locPlace').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); go(); } });
     }
@@ -470,7 +477,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
     $('#chainStats').innerHTML=chains.map(c=>{ const n=stores.filter(s=>s.chain===c.id).length, off=state.prefs.chainsOff.includes(c.id); return `<div class="kv"><span><span class="tag chain" style="--c:${esc(c.color)}">${esc(c.short||c.name)}</span> ${esc(c.name)}<span class="small muted"> ・ ${esc(c.fetchedAt||'')}${c.source?' ・ '+esc(c.source):''}</span></span><span class="num">${n}店 ${chains.length>1?`<button class="linkish" data-chain="${esc(c.id)}">${off?'表示する':'外す'}</button>`:''}</span></div>`; }).join('')||'<div class="note">店データがまだ読めていません</div>';
     document.querySelectorAll('#chainStats [data-chain]').forEach(b=>b.addEventListener('click',()=>{ toggleChain(b.dataset.chain); renderSettings(); }));
     $('#brandList').innerHTML=[...new Set(state.custom.map(s=>s.brand).filter(Boolean))].map(b=>`<option value="${esc(b)}">`).join('');
-    $('#statCustom').textContent=state.custom.length; $('#statVisits').textContent=state.visits.length; if(document.activeElement!==$('#homeAddr')) $('#homeAddr').value=state.home?.address||''; $('#homeStat').textContent=state.home?(hasGeo(state.home)?'位置あり':'位置が取れていません'):'未設定'; $('#statVer').textContent=document.querySelector('meta[name=app-version]')?.content||'—'; $('#statLoc').textContent={ok:'取得できています',denied:'許可されていません',timeout:'応答なし',asking:'確認中',idle:'未取得',none:'この端末では使えません',stale:'前回の位置を使用',error:'エラー'}[locState]||locState;
+    $('#statCustom').textContent=state.custom.length; $('#statVisits').textContent=state.visits.length; if(document.activeElement!==$('#homeAddr')) $('#homeAddr').value=state.home?.address||''; $('#homeStat').textContent=state.home?(hasGeo(state.home)?'位置あり':'位置が取れていません'):'未設定'; $('#statVer').textContent=document.querySelector('meta[name=app-version]')?.content||'—'; $('#statLoc').textContent={ok:'取得できています',denied:'許可されていません',timeout:'応答なし（時間切れ）',unavailable:'場所が取れません',asking:'確認中',idle:'未取得',none:'この端末では使えません',stale:'前回の位置を使用',error:'エラー'}[locState]||locState;
     const hl=$('#hiddenList'); const hs=state.hidden.map(byId).filter(Boolean); hl.innerHTML=hs.length?hs.map(s=>`<div class="kv"><span>${esc(s.name)}</span><button class="linkish" data-unhide="${s.id}">戻す</button></div>`).join(''):'なし'; hl.querySelectorAll('[data-unhide]').forEach(b=>b.addEventListener('click',()=>{ state.hidden=state.hidden.filter(x=>x!==b.dataset.unhide); save(); renderSettings(); })); }
   $('#btnHomeSave').addEventListener('click',async()=>{ const a=$('#homeAddr').value.trim(); if(!a){ state.home=null; save(); renderSettings(); return; } $('#homeStat').textContent='取得中…'; const g=await geocode(a); state.home=g?{address:a,lat:g.lat,lng:g.lng}:{address:a}; save(); renderSettings(); toast(g?'出発地を保存しました':'住所から位置が取れませんでした'); });
   async function makeCustom(name,address,hours,brand){ const g=address?await geocode(address):null; const s={id:'c'+uid(),name,address,hours:z2h(hours||''),brand:brand||'',pref:(g?.title.match(/^(.+?[都道府県])/)||[])[1]||'',city:'',lat:g?.lat,lng:g?.lng,geoTitle:g?.title}; return hasGeo(s)?s:null; }
