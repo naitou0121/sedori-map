@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """ブックオフ公式の店舗検索（サイトが裏で使っている公開API）から全国の店舗を取り、data/sources/bookoff.json に書く。
 1都道府県1リクエスト・1.2秒間隔。営業時間が変わった時はこれを再実行 → python3 build.py → 公開.command。
+各店に books（本を売っているか）と buyonly（買取専門か）も付ける。
 他のチェーンを足す時はこのファイルは触らず tools/csv2json.py を使う（README「改造」参照）。"""
 import json, time, urllib.parse, urllib.request, re, pathlib, datetime
 API='https://as.blue.asp.appirits.com/bookoff2/search.json'
@@ -9,6 +10,9 @@ out=[]
 def clean(x):
     if isinstance(x,list): x=x[0] if x else ''
     return re.sub(r'<[^>]+>','',x or '').strip()
+def codes(x):
+    if isinstance(x,list): x=x[0] if x else ''
+    return [c for c in str(x or '').split(':') if c]
 for i,p in enumerate(PREFS,1):
     key=f'{i:02d}_{p}'
     page=1
@@ -18,11 +22,14 @@ for i,p in enumerate(PREFS,1):
         items=j['result']['items']; total=j['result']['total']
         for it in items:
             tel=clean(it.get('tel_number')).split('\n')[0]; tel=re.match(r'[\d-]+',tel); tel=tel.group(0) if tel else ''
+            # 取扱商品のコード（店のページの「売りたい商品／買いたい商品」と同じ。01＝本）。buy＝客が買える＝店が売っている
+            buy,sell=codes(it.get('product_parents_buy')),codes(it.get('product_parents_sell'))
             out.append({'id':'bo'+str(it['id']),'chain':'bookoff','name':('BOOKOFF ' if not str(it['title']).startswith('BOOKOFF') else '')+it['title'],
                 'brand':it.get('store_category') or 'BOOKOFF','address':clean(it.get('text')),'zip':clean(it.get('zip_code')),
                 'pref':p,'city':clean(it.get('city')).split('_')[-1],'lat':it.get('lat'),'lng':it.get('lon'),
                 'hours':clean(it.get('business_hours1')),'hours2':clean(it.get('business_hours2')),'tel':tel,
-                'url':'https://www.bookoff.co.jp/shop/'+(it.get('url') or '')})
+                'url':'https://www.bookoff.co.jp/shop/'+(it.get('url') or ''),
+                **({'books':'01' in buy} if (buy or sell) else {}),**({'buyonly':True} if (sell and not buy) else {})})
         if page*100>=total: break
         page+=1; time.sleep(1.2)
     print(p,total,flush=True); time.sleep(1.2)
