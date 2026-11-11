@@ -183,16 +183,18 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
       <div class="routebar" id="routebar" hidden><button class="btn" id="btnSuggest">近い順に並べ替え</button><a class="btn primary" id="btnNavi" href="#" target="_blank" rel="noopener">Googleマップで案内</a></div>
       <div class="list" id="planList"></div>
       <div class="row" id="routeSaveRow" style="margin:10px 0 4px" hidden><button class="btn block" id="btnSaveRoute">このルートを保存する</button></div>
+      <div class="section" id="savedSec" style="margin-top:14px" hidden><h2>いつものルート</h2><div id="savedList"></div></div>
       <div class="section" style="margin-top:14px">
         <h2 id="routeMakeTitle">ルートを作る</h2>
-        <div class="field"><label>回る店の数</label><div class="chips" id="rtCount"></div></div>
+        <p class="note" id="rtArea" style="margin-bottom:10px"></p>
+        <div class="field"><label>使える時間</label><div class="chips" id="rtTime"></div></div>
+        <div class="field" id="rtCountField"><label>回る店の数</label><div class="chips" id="rtCount"></div></div>
         <div class="field"><label>1店にいる時間</label><div class="chips" id="rtStay"></div></div>
         <div class="field"><label>移動のしかた</label><div class="chips" id="rtMode"></div></div>
         <div class="field"><label>どの店から選ぶか</label><div class="chips" id="rtPool"></div></div>
         <div class="row"><button class="btn primary block" id="btnQuickPlan">この条件でルートを作る</button></div>
-        <p class="note" style="margin-top:8px">今いる場所（または出発地）から近い店を選び、回る順に並べます。今日もう行った店、閉店した店、寝かせている店は入りません。</p>
+        <p class="note" style="margin-top:8px">今いる場所（または出発地）から近い店を選び、回る順に並べます。使える時間を選ぶと、その時間に入るだけの店を選びます。今日もう行った店、閉店した店、寝かせている店は入りません。</p>
       </div>
-      <div class="section" id="savedSec" hidden><h2>保存したルート</h2><div id="savedList"></div></div>
       <div class="section" id="pastSec" hidden><h2>前に回ったルート</h2><p class="note">訪問記録から、同じ日に2店以上回った日を出しています。</p><div id="pastList"></div></div>
     </section>
 
@@ -288,11 +290,11 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   let storageOk=true;
   function load(){ try{ const raw=localStorage.getItem(KEY); if(raw){ const s=JSON.parse(raw); if(s&&Array.isArray(s.visits)) return s; } }catch(e){ storageOk=false; } return null; }
   function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){ storageOk=false; toast('保存できませんでした'); } }
-  const defPrefs=()=>({books:true,pref:'',chainsOff:[],ticket:false,fav:false,rt:{n:5,stay:30,mode:'car',pool:'all'}});
+  const defPrefs=()=>({books:true,pref:'',chainsOff:[],ticket:false,fav:false,rt:{n:5,stay:30,mode:'car',pool:'all',time:0}});
   let state=load()||{visits:[],custom:[],hidden:[],snooze:{},home:null,prefs:defPrefs(),plan:{date:todayStr(),items:[]}};
   state.visits=state.visits||[]; state.favs=state.favs||[]; state.pkNote=state.pkNote||{}; state.memo=state.memo||{}; state.routes=state.routes||[]; state.custom=state.custom||[]; state.hidden=state.hidden||[]; state.snooze=state.snooze||{}; state.prefs={...defPrefs(),...(state.prefs||{})}; state.prefs.chainsOff=state.prefs.chainsOff||[]; state.plan=state.plan||{date:todayStr(),items:[]};
   // 2026-11-11：近く＋店舗を1画面に。本がある店／全部の店・距離の範囲の切り替えは廃止（本がある店だけ・近い順）。県は「近く」を初期値に戻す
-  state.prefs.rt={n:5,stay:30,mode:'car',pool:'all',...(state.prefs.rt||{})}; state.prefs.books=true; delete state.prefs.radius; delete state.prefs.prefAuto; if(!state.prefs.v2){ state.prefs.pref=''; state.prefs.v2=true; }
+  state.prefs.rt={n:5,stay:30,mode:'car',pool:'all',time:0,...(state.prefs.rt||{})}; state.prefs.books=true; delete state.prefs.radius; delete state.prefs.prefAuto; if(!state.prefs.v2){ state.prefs.pref=''; state.prefs.v2=true; }
 
   // ---- 店舗データ ----
   // data/stores.json は build.py が data/sources/*.json（チェーンごと）を合流させたもの。chains に各チェーンの名前・色・出どころが入る
@@ -473,8 +475,21 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   async function quickPlan(){ const rt=state.prefs.rt; const org=await currentPos()||home(); if(!org){ toast('現在地か出発地が要ります。「店舗」の上で現在地を取るか、地名を入れてください'); return; }
     let pool=all().filter(s=>!state.hidden.includes(s.id)&&chainOn(s)&&isBook(s)&&gap(s).k!=='snoozed'&&!visitedToday(s.id)&&openStatus(s).k!=='closed');
     if(rt.pool==='fav') pool=pool.filter(s=>isFav(s.id)); else if(rt.pool==='tk') pool=pool.filter(s=>s.tk);
-    const pick=withDist(pool,org).slice(0,rt.n).map(r=>r.s); if(!pick.length){ toast(rt.pool==='fav'?'お気に入りの店がありません（今日行った店・閉店した店は除いています）':'条件に合う店がありません'); return; }
-    startPlan(orderStops(org,pick),org); toast(`${org.name}から近い${pick.length}店で組みました`); render(); $('#main').scrollTop=0; }
+    if(!pool.length){ toast(rt.pool==='fav'?'お気に入りの店がありません（今日行った店・閉店した店は除いています）':'条件に合う店がありません'); return; }
+    let pick;
+    if(rt.time){
+      // 使える時間に入るだけ：いまの場所から一番近い店へ順に進み、「移動＋滞在」が残り時間に収まり、閉店にも間に合う店だけ足す（最大9店）
+      const d0=new Date(); const now0=d0.getHours()*60+d0.getMinutes(); let cur=org, used=0, rest=pool.slice(); pick=[];
+      while(rest.length&&pick.length<9){ rest.sort((x,y)=>dist(cur,x)-dist(cur,y)); let hit=-1;
+        for(let i=0;i<Math.min(rest.length,12);i++){ const c=rest[i]; const leg=legMin(dist(cur,c)); if(used+leg+rt.stay>rt.time) continue; const ph=parseHours(c.hours||''); if(ph){ let at=now0+used+leg; if(at<ph.o&&at+1440<ph.c) at+=1440; if(at+Math.min(rt.stay,15)>ph.c) continue; } hit=i; break; }
+        if(hit<0) break; const c=rest.splice(hit,1)[0]; used+=legMin(dist(cur,c))+rt.stay; pick.push(c); cur=c; }
+      if(!pick.length){ const near=withDist(pool,org)[0]; toast(`${hm(rt.time)}では回れる店がありません（一番近い店まで移動 約${hm(legMin(near.km))}）`); return; }
+      startPlan(pick,org); toast(`${hm(rt.time)}で${pick.length}店回れます`);
+    } else {
+      pick=withDist(pool,org).slice(0,rt.n).map(r=>r.s);
+      startPlan(orderStops(org,pick),org); toast(`${org.name}から近い${pick.length}店で組みました`);
+    }
+    render(); $('#main').scrollTop=0; }
   $('#btnQuickPlan').addEventListener('click',quickPlan);
   $('#btnReplan').addEventListener('click',()=>{ state.plan={date:todayStr(),items:[]}; openRow=null; save(); render(); });
   $('#btnSaveRoute').addEventListener('click',()=>{ const items=planToday(); if(!items.length) return; const first=byId(items[0].storeId); const def=`${(first.pref||'').replace(/[都道府県]$/,'')||'ルート'} ${items.length}店`; const name=(prompt('ルートの名前',def)||'').trim().slice(0,30); if(!name) return; state.routes.unshift({id:uid(),name,ids:items.map(i=>i.storeId),createdAt:Date.now()}); state.routes=state.routes.slice(0,30); save(); toast('ルートを保存しました'); render(); });
@@ -483,14 +498,21 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   function renderRoute(){
     const rt=state.prefs.rt; const items=planToday();
     $('#hdrSub').textContent=items.length?`今日のルート ${items.filter(i=>i.done).length}/${items.length}`:'回る店の数を決めると、順番を出します';
-    chipRow($('#rtCount'),[[3,'3店'],[5,'5店'],[7,'7店'],[9,'9店']],rt.n,v=>rt.n=+v);
+    chipRow($('#rtTime'),[[0,'決めない'],[60,'1時間'],[120,'2時間'],[180,'3時間'],[240,'4時間'],[360,'6時間']],rt.time,v=>rt.time=+v);
+    chipRow($('#rtCount'),[[3,'3店'],[5,'5店'],[7,'7店'],[9,'9店']],rt.n,v=>rt.n=+v); $('#rtCountField').hidden=!!rt.time;
+    { const org=origin(); const base=all().filter(x=>!state.hidden.includes(x.id)&&chainOn(x)&&isBook(x)); const el=$('#rtArea');
+      if(org){ const ds=base.map(x=>dist(org,x)); const c=k=>ds.filter(v=>v<=k).length; const near=withDist(base,org)[0]; const pf=near&&near.s.pref; el.textContent=`${org.name}のまわり：10km以内に ${c(10)}店 ・ 30km以内に ${c(30)}店${pf?` ・ ${pf}に ${base.filter(x=>x.pref===pf).length}店`:''}`; }
+      else el.textContent='現在地か出発地が分かると、このあたりに何店あるかが出ます'; }
     chipRow($('#rtStay'),[[15,'15分'],[30,'30分'],[45,'45分'],[60,'60分'],[90,'90分']],rt.stay,v=>rt.stay=+v);
     chipRow($('#rtMode'),[['car','車'],['walk','歩き']],rt.mode,v=>rt.mode=v);
     chipRow($('#rtPool'),[['all','全部の店'],['fav','お気に入りだけ'],...(hasTicket()?[['tk','チケット可だけ']]:[])],rt.pool,v=>rt.pool=v);
     $('#routeMakeTitle').textContent=items.length?'ルートを作り直す':'ルートを作る'; $('#btnQuickPlan').textContent=items.length?'この条件で作り直す':'この条件でルートを作る';
     renderPlan();
     const sv=state.routes.filter(r=>r.ids.some(byId)); $('#savedSec').hidden=!sv.length;
-    $('#savedList').innerHTML=sv.map(r=>`<div class="kvr" data-rid="${r.id}"><div><div class="t">${esc(r.name)}</div><div class="d">${r.ids.map(byId).filter(Boolean).map(x=>esc(x.name.replace(/^BOOKOFF\s*/,''))).join(' → ')}</div></div><div class="bt"><button class="btn soft" data-ra="use">使う</button><button class="btn" data-ra="del">消す</button></div></div>`).join('');
+    // そのルートを最後に回った日＝ルートの店の半分以上（2店以上）に同じ日に行っている、いちばん新しい日
+    const lastRun=r=>{ const ids=r.ids.filter(byId); const need=Math.min(ids.length,Math.max(2,Math.ceil(ids.length/2))); const cnt={}; state.visits.forEach(v=>{ if(ids.includes(v.storeId)){ (cnt[v.date]=cnt[v.date]||new Set()).add(v.storeId); } }); const ds=Object.keys(cnt).filter(d=>cnt[d].size>=need).sort(); return ds.pop()||null; };
+    $('#savedList').innerHTML=sv.map(r=>{ const l=lastRun(r); const n=l?daysAgo(l):null; const when=l?(n===0?'今日回った':`最後に回ったのは ${fmtShort(l)}（${n}日前）`):'まだ回っていません'; const cls=l?(n>=30?'over':n>=14?'soon':'today'):'';
+      return `<div class="kvr" data-rid="${r.id}"><div><div class="t">${esc(r.name)} <span class="small muted">${r.ids.filter(byId).length}店</span></div><div style="margin:2px 0"><span class="tag ${cls}">${when}</span></div><div class="d">${r.ids.map(byId).filter(Boolean).map(x=>esc(x.name.replace(/^BOOKOFF\s*/,''))).join(' → ')}</div></div><div class="bt"><button class="btn soft" data-ra="use">使う</button><button class="btn" data-ra="del">消す</button></div></div>`; }).join('');
     $('#savedList').querySelectorAll('[data-ra]').forEach(b=>b.addEventListener('click',()=>{ const id=b.closest('.kvr').dataset.rid; const r=state.routes.find(x=>x.id===id); if(!r) return; if(b.dataset.ra==='use') useRoute(r.ids,`「${r.name}」を今日のルートにしました`); else if(confirm(`「${r.name}」を消しますか？`)){ state.routes=state.routes.filter(x=>x.id!==id); save(); render(); } }));
     // 前に回ったルート＝訪問記録で、同じ日に2店以上ある日（新しい順に8日ぶん・今日は除く）
     const byDay={}; state.visits.filter(v=>byId(v.storeId)&&v.date!==todayStr()).sort((a,b)=>a.createdAt-b.createdAt).forEach(v=>{ (byDay[v.date]=byDay[v.date]||[]); if(!byDay[v.date].includes(v.storeId)) byDay[v.date].push(v.storeId); });
