@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="仕入れマップ">
 <meta name="theme-color" content="#8a5a2b">
-<meta name="app-version" content="202611111459">
+<meta name="app-version" content="202611111504">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" href="./icon-192.png">
@@ -76,6 +76,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
 .tag.soon{background:var(--warn-soft);color:var(--warn);font-weight:700}
 .tag.today{background:var(--ok-soft);color:var(--ok);font-weight:700}
 .tag.tk{background:var(--accent-soft);color:var(--accent);font-weight:700}
+.tkmark{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;background:var(--accent);color:var(--accent-fg);font-size:11px;font-weight:700;line-height:1.6;vertical-align:2px;white-space:nowrap}
 .tag.custom{border:1px dashed var(--line);background:transparent}
 .near{display:grid;grid-template-columns:58px 1fr auto;gap:4px 10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-height:72px}
 .near .km{font-family:var(--font-num);font-size:18px;font-weight:600;line-height:1.1;text-align:center}
@@ -305,7 +306,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
   const visible=()=>all().filter(s=>!state.hidden.includes(s.id)&&chainOn(s)&&(!state.prefs.books||isBook(s))&&(!state.prefs.ticket||!!s.tk));
   // ---- ブックチケット（対象店の印は data/ticket.json から）----
   const hasTicket=()=>!!ticketMeta&&stores.some(s=>s.tk);
-  const ticketTag=s=>s.tk?'<span class="tag tk">チケット可</span>':'';
+  const ticketMark=s=>s.tk?'<span class="tkmark">チケット可</span>':'';
   const ticketChip=()=>hasTicket()?`<button class="chip" data-k="tk:1" aria-pressed="${String(!!state.prefs.ticket)}">チケットが使える店</button>`:'';
   const visitsOf=id=>state.visits.filter(v=>v.storeId===id).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
   const lastVisit=id=>visitsOf(id)[0]?.date||null;
@@ -370,7 +371,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
     else if(!rows.length){ list.innerHTML=`<div class="empty">${pr.radius?pr.radius+'km以内':'範囲内'}に店がありません。範囲を広げてください。</div>`; }
     else list.innerHTML=rows.map(({s,km})=>{ const g=gap(s); const today=visitedToday(s.id);
       return `<div class="near" data-id="${s.id}"><div class="km">${kmTxt(km)}<small>km</small></div>
-        <button class="body" data-act="open"><div class="nm">${esc(s.name)}</div><div class="ln">${statusTag(s)}<span class="num">${esc(s.hours||'')}</span>${brandTag(s)}<span class="tag ${g.cls}">${g.label}</span>${ticketTag(s)}</div></button>
+        <button class="body" data-act="open"><div class="nm">${esc(s.name)}${ticketMark(s)}</div><div class="ln">${statusTag(s)}<span class="num">${esc(s.hours||'')}</span>${brandTag(s)}<span class="tag ${g.cls}">${g.label}</span></div></button>
         <div class="acts"><a class="ib" href="${mapsUrl(s)}" target="_blank" rel="noopener" aria-label="Googleマップ"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg></a><button class="ib ${today?'done':''}" data-act="visit">${today?'✓済':'行った'}</button></div></div>`; }).join('');
     list.querySelectorAll('[data-act="open"]').forEach(b=>b.addEventListener('click',()=>openSheet(b.closest('.near').dataset.id)));
     list.querySelectorAll('[data-act="visit"]').forEach(b=>b.addEventListener('click',()=>recordVisit(b.closest('.near').dataset.id)));
@@ -412,7 +413,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
   let map=null, layer=null, meMarker=null, selectedId=null;
   function ensureMap(){ if(map||typeof L==='undefined') return; const o=origin(); map=L.map('map',{zoomControl:true}).setView(o?[o.lat,o.lng]:[35.39,136.75],o?12:9); L.tileLayer('https://cyberjapandata.gsi.go.jp/xyz/pale/{z}/{x}/{y}.png',{maxZoom:18,attribution:'<a href="https://maps.gsi.go.jp/development/ichiran.html" target="_blank" rel="noopener">地理院タイル</a>'}).addTo(map); layer=L.layerGroup().addTo(map); map.on('moveend',drawPins); }
   const pinIcon=(cls,label)=>L.divIcon({className:'',html:`<div class="pin ${cls}">${label||''}</div>`,iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-14]});
-  function popupHTML(s){ const l=lastVisit(s.id), st=openStatus(s), p=inPlan(s.id); return `<div class="pop"><b>${esc(s.name)}</b><br><span class="small muted">${esc(s.address||'')}</span><br><span class="tag ${st.k}">${esc(st.short)}</span> <span class="num small">${esc(s.hours||'')}</span><br><span class="small">${l?`最終 ${fmt(l)}（${daysAgo(l)}日前）・${visitsOf(s.id).length}回`:'未訪問'}</span>${s.tk?`<br>${ticketTag(s)}`:''}<div class="row"><button class="btn ok" data-pop="visit" data-id="${s.id}" ${visitedToday(s.id)?'disabled':''}>${visitedToday(s.id)?'✓ 今日記録済み':'今日行った'}</button><button class="btn ${p?'':'soft'}" data-pop="plan" data-id="${s.id}">${p?'予定から外す':'予定に入れる'}</button><button class="btn" data-pop="open" data-id="${s.id}">詳細</button></div></div>`; }
+  function popupHTML(s){ const l=lastVisit(s.id), st=openStatus(s), p=inPlan(s.id); return `<div class="pop"><b>${esc(s.name)}</b>${ticketMark(s)}<br><span class="small muted">${esc(s.address||'')}</span><br><span class="tag ${st.k}">${esc(st.short)}</span> <span class="num small">${esc(s.hours||'')}</span><br><span class="small">${l?`最終 ${fmt(l)}（${daysAgo(l)}日前）・${visitsOf(s.id).length}回`:'未訪問'}</span><div class="row"><button class="btn ok" data-pop="visit" data-id="${s.id}" ${visitedToday(s.id)?'disabled':''}>${visitedToday(s.id)?'✓ 今日記録済み':'今日行った'}</button><button class="btn ${p?'':'soft'}" data-pop="plan" data-id="${s.id}">${p?'予定から外す':'予定に入れる'}</button><button class="btn" data-pop="open" data-id="${s.id}">詳細</button></div></div>`; }
   function drawPins(){ if(!map) return; layer.clearLayers(); const b=map.getBounds(); const list=visible().filter(s=>b.contains([s.lat,s.lng])); const org=origin(); list.forEach(s=>{ const g=gap(s); const st=openStatus(s); const cls=(g.k==='ok'?'':g.k==='over'||g.k==='soon'?'old':'none')+(st.k==='closed'||st.k==='before'?' closed':''); const ch=chainOf(s); const m=L.marker([s.lat,s.lng],{icon:pinIcon(cls,chains.length>1&&ch?`<i class="ch" style="--c:${esc(ch.color)}"></i>`:'')}).addTo(layer); m.bindPopup(popupHTML(s),{closeButton:false,maxWidth:280}); m.on('popupopen',()=>{ selectedId=s.id; bindPopup(); }); }); if(me){ L.marker([me.lat,me.lng],{icon:L.divIcon({className:'',html:'<div class="pin me"></div>',iconSize:[18,18],iconAnchor:[9,9]}),interactive:false}).addTo(layer); }
     const cnt={ok:0,old:0,none:0}; list.forEach(s=>{ const k=gap(s).k; cnt[k==='ok'?'ok':(k==='over'||k==='soon')?'old':'none']++; });
     $('#mapFoot').innerHTML=`<div class="legend"><span><i class="dot"></i>2週間以内</span><span><i class="dot old"></i>それより前</span><span><i class="dot none"></i>未訪問</span><span>薄い＝今は閉店</span>${me?'<span><i class="dot me"></i>現在地</span>':''}</div><div class="note">この範囲に ${list.length}店（2週間以内 ${cnt.ok} ・ 前に ${cnt.old} ・ 未訪問 ${cnt.none}）${org?'':' ・ 現在地なし'}</div>`; }
@@ -428,11 +429,11 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
     const order=['岐阜県','愛知県','三重県','滋賀県','静岡県','長野県']; prefs.sort((a,b)=>(order.indexOf(a)+1||99)-(order.indexOf(b)+1||99)||a.localeCompare(b,'ja'));
     const pc=$('#prefChips'); pc.innerHTML=['',...prefs].map(p=>`<button class="chip" data-p="${esc(p)}" aria-pressed="${String(p===pr.pref)}">${p||'全国'}</button>`).join(''); pc.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{ pr.pref=b.dataset.p; save(); renderStores(); }));
     const sc=$('#sortChips'); sc.innerHTML=[['dist','近い順'],['gap','空いている順'],['name','名前順']].map(([k,l])=>`<button class="chip" data-s="${k}" aria-pressed="${String(k===sortMode)}">${l}</button>`).join('')+ticketChip(); sc.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.k==='tk:1'){ pr.ticket=!pr.ticket; save(); } else sortMode=b.dataset.s; renderStores(); }));
-    let list=visible().filter(s=>!pr.pref||(s.pref||'その他')===pr.pref); if(q){ const k=q.toLowerCase(); list=all().filter(s=>(s.name+' '+(s.address||'')).toLowerCase().includes(k)); }
+    let list=visible().filter(s=>!pr.pref||(s.pref||'その他')===pr.pref); if(q){ const k=q.toLowerCase(); list=all().filter(s=>(s.name+' '+(s.address||'')).toLowerCase().includes(k)&&(!pr.ticket||!!s.tk)); }
     let rows=withDist(list,org); if(sortMode==='gap') rows.sort((a,b)=>gapRank[gap(a.s).k]-gapRank[gap(b.s).k]||gap(b.s).d-gap(a.s).d); else if(sortMode==='name') rows.sort((a,b)=>a.s.name.localeCompare(b.s.name,'ja'));
-    $('#hdrSub').textContent=`${pr.pref||'全国'} ${list.length}店 ・ ${pr.books?'本がある店':'すべて'}`;
+    $('#hdrSub').textContent=q?`「${q}」で ${list.length}店${pr.ticket?' ・ チケットが使える店':''}`:`${pr.pref||'全国'} ${list.length}店 ・ ${pr.ticket?'チケットが使える店':pr.books?'本がある店':'すべて'}`;
     const ul=$('#storeList'); if(!rows.length){ ul.innerHTML='<li class="empty">該当する店がありません。</li>'; return; }
-    ul.innerHTML=rows.map(({s,km})=>{ const n=visitsOf(s.id).length, l=lastVisit(s.id), g=gap(s); return `<li><button class="card" data-id="${s.id}"><div class="name">${esc(s.name)}</div><div class="addr">${esc(s.address||'')}</div><div class="tagrow">${statusTag(s)}<span class="num small muted">${esc(s.hours||'')}</span>${km!=null?`<span class="tag num">${kmTxt(km)}km</span>`:''}<span class="tag ${g.cls}">${g.label}</span>${ticketTag(s)}${inPlan(s.id)?'<span class="tag today">今日の予定</span>':''}${state.hidden.includes(s.id)?'<span class="tag">非表示</span>':''}</div><div class="meta"><div class="cnt num">${n}<small>回</small></div><div class="last">${l?`最終 ${fmtShort(l)}`:'—'}</div></div></button></li>`; }).join('');
+    ul.innerHTML=rows.map(({s,km})=>{ const n=visitsOf(s.id).length, l=lastVisit(s.id), g=gap(s); return `<li><button class="card" data-id="${s.id}"><div class="name">${esc(s.name)}${ticketMark(s)}</div><div class="addr">${esc(s.address||'')}</div><div class="tagrow">${statusTag(s)}<span class="num small muted">${esc(s.hours||'')}</span>${km!=null?`<span class="tag num">${kmTxt(km)}km</span>`:''}<span class="tag ${g.cls}">${g.label}</span>${inPlan(s.id)?'<span class="tag today">今日の予定</span>':''}${state.hidden.includes(s.id)?'<span class="tag">非表示</span>':''}</div><div class="meta"><div class="cnt num">${n}<small>回</small></div><div class="last">${l?`最終 ${fmtShort(l)}`:'—'}</div></div></button></li>`; }).join('');
     ul.querySelectorAll('.card').forEach(b=>b.addEventListener('click',()=>openSheet(b.dataset.id)));
   }
 
@@ -465,7 +466,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
   function renderSheet(){
     const s=byId(sheetId); if(!s){ closeSheet(); return; } const inner=$('#sheetInner'); const t=todayStr(); const vs=visitsOf(s.id), last=vs[0]?.date||null, st=openStatus(s), g=gap(s), today=visitedToday(s.id), planned=inPlan(s.id), hidden=state.hidden.includes(s.id); const org=origin(); const km=org&&hasGeo(s)?dist(org,s):null;
     inner.innerHTML=`<div class="row" style="margin-bottom:4px">${s.builtin?`<span class="tag chain" style="--c:${esc(chainOf(s).color)}">${esc(chainOf(s).name)}</span>${s.brand&&s.brand!==chainOf(s).name?`<span class="tag brand">${esc(s.brand)}</span>`:''}`:brandTag(s)}${s.pref?`<span class="tag">${esc(s.pref)}${esc(s.city||'')}</span>`:''}${km!=null?`<span class="tag num">${org.name}から${kmTxt(km)}km</span>`:''}</div>
-      <h2 id="shName">${esc(s.name)}</h2><div class="addr">${esc(s.address||'住所なし')}${s.tel?` ・ <span class="num">${esc(s.tel)}</span>`:''}</div>
+      <h2 id="shName">${esc(s.name)}${ticketMark(s)}</h2><div class="addr">${esc(s.address||'住所なし')}${s.tel?` ・ <span class="num">${esc(s.tel)}</span>`:''}</div>
       <div class="hoursbox"><div><span class="tag ${st.k}">${esc(st.label)}</span></div><div style="margin-top:4px">営業時間 <b class="num">${esc(s.hours||'不明')}</b>${s.hours2?`<br><span class="small muted">別の時間帯の記載：${esc(s.hours2)}</span>`:''}</div><div class="small muted" style="margin-top:2px">${s.builtin?`${esc(chainOf(s).source||'公式サイト')}より。祝日・臨時休業は未反映`:'自分で入れた時間'}</div></div>
       <div class="row"><a class="btn soft" href="${mapsUrl(s)}" target="_blank" rel="noopener">Googleマップ</a>${s.url?`<a class="btn" href="${esc(s.url)}" target="_blank" rel="noopener">公式ページ</a>`:''}<button class="btn ${planned?'':'soft'}" id="shPlan">${planned?'予定から外す':'今日の予定に入れる'}</button></div>
       <div class="stats"><div class="stat"><div class="k">累計</div><div class="v">${vs.length}<span class="small muted"> 回</span></div></div><div class="stat"><div class="k">最終</div><div class="v">${last?fmtShort(last):'—'}</div><div class="small"><span class="tag ${g.cls}">${g.label}</span></div></div></div>
