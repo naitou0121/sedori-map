@@ -338,7 +338,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
     const standalone=window.navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
     const top='iPhone の「設定」→ プライバシーとセキュリティ → 位置情報サービス を開きます（一番上のスイッチがオンでも、下のアプリごとの行が「しない」だと取れません）。';
     const saf=`<div class="row" style="margin-top:8px"><a class="btn ok" href="x-safari-${location.href.split('#')[0]}">Safariで開く</a><button class="btn" type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText(location.href.split('#')[0]).then(()=>{this.textContent='コピーしました'})">URLをコピー</button></div>`;
-    if(ios&&/CriOS/.test(ua)) return `Chrome では、設定を許可にしても現在地が取れないことがあります。<b>Safari で開いてください。</b>Safari なら取れます。${saf}`;
+    if(ios&&/CriOS/.test(ua)) return `1. iPhone の「設定」→ <b>Chrome</b> → 位置情報 →「<b>このAppの使用中</b>」にする。<br>2. <b>Chrome を完全に終了して開き直す</b>（画面の下から上へスワイプし、Chrome の画面を上に払って消す）。設定を変えただけでは、開いたままの Chrome は前の拒否を覚えています。<br>3. もう一度このページを開くと確認が出るので「許可」。<br>うまくいかない時は Safari で開いても使えます。${saf}`;
     if(ios&&!/Safari/.test(ua.replace(/CriOS|FxiOS|EdgiOS/,''))||ios&&/FxiOS|EdgiOS|Line\/|Instagram|FBAN|FBAV/.test(ua)) return `このブラウザがこのサイトの位置情報を止めています。<b>Safari で開くと使えます。</b>${saf}`;
     if(ios&&standalone) return `${top}<br>次に同じ画面の一覧から「<b>SafariのWebサイト</b>」→「<b>このAppの使用中</b>」を選ぶ。アプリを開き直して「現在地を取る」を押してください。`;
     if(ios) return `${top}<br>アプリの一覧を下へ進み「<b>SafariのWebサイト</b>」→「<b>このAppの使用中</b>」を選ぶ。Safari に戻って読み込み直し、「現在地を取る」を押すと確認が出るので「許可」。`;

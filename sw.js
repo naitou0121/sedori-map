@@ -1,4 +1,4 @@
-const C="sedori-map-202611111549";
+const C="sedori-map-202611111554";
 const ASSETS=["./", "./index.html", "./guide.html", "./leaflet.js", "./leaflet.css", "./data/stores.json", "./manifest.webmanifest", "./icon-180.png", "./icon-192.png", "./icon-512.png", "./icon-512-maskable.png"];
 self.addEventListener("install",function(e){e.waitUntil(caches.open(C).then(function(c){return c.addAll(ASSETS)}).then(function(){return self.skipWaiting()}))});
 self.addEventListener("activate",function(e){e.waitUntil(caches.keys().then(function(ks){return Promise.all(ks.map(function(k){if(k!==C)return caches.delete(k)}))}).then(function(){return self.clients.claim()}))});
