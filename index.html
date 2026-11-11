@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="仕入れマップ">
 <meta name="theme-color" content="#8a5a2b">
-<meta name="app-version" content="202611111557">
+<meta name="app-version" content="202611111600">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" href="./icon-192.png">
@@ -464,16 +464,18 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
   function bindPopup(){ document.querySelectorAll('.leaflet-popup [data-pop]').forEach(b=>{ if(b._bound) return; b._bound=true; b.addEventListener('click',()=>{ const id=b.dataset.id; if(b.dataset.pop==='open'){ map.closePopup(); openSheet(id); } else if(b.dataset.pop==='visit'){ recordVisit(id); map.closePopup(); drawPins(); } else { togglePlan(id); map.closePopup(); drawPins(); } }); }); }
 
   // ---- 店舗一覧 ----
-  let q='', sortMode='dist';
+  let q='';
   $('#q').addEventListener('input',e=>{ q=e.target.value.trim(); renderStores(); });
   function renderStores(){
     const org=origin(); const pr=state.prefs; const prefs=[...new Set(visible().map(s=>s.pref||'その他'))];
-    if(!pr.pref){ const near=withDist(visible(),org)[0]; pr.pref=near?.s?.pref||'岐阜県'; }
+    // 県の初期値：現在地（または出発地）が分かっている時だけ、いちばん近い店の県にする。自分で県を選んだ後は変えない
+    // （場所が分かる前に決めると、一覧の先頭＝北海道で固定されてしまう不具合があった）
+    if(pr.prefAuto!==false&&org){ const near=withDist(all().filter(s=>!state.hidden.includes(s.id)),org)[0]; if(near?.s?.pref){ pr.pref=near.s.pref; pr.prefAuto=true; } } else if(pr.prefAuto!==false&&!org){ pr.pref=''; }
     const order=['岐阜県','愛知県','三重県','滋賀県','静岡県','長野県']; prefs.sort((a,b)=>(order.indexOf(a)+1||99)-(order.indexOf(b)+1||99)||a.localeCompare(b,'ja'));
-    const pc=$('#prefChips'); pc.innerHTML=['',...prefs].map(p=>`<button class="chip" data-p="${esc(p)}" aria-pressed="${String(p===pr.pref)}">${p||'全国'}</button>`).join(''); pc.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{ pr.pref=b.dataset.p; save(); renderStores(); }));
-    const sc=$('#sortChips'); sc.innerHTML=[['dist','近い順'],['gap','行っていない順']].map(([k,l])=>`<button class="chip" data-s="${k}" aria-pressed="${String(k===sortMode)}">${l}</button>`).join('')+ticketChip(); sc.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{ if(b.dataset.k==='tk:1'){ pr.ticket=!pr.ticket; save(); } else sortMode=b.dataset.s; renderStores(); }));
+    const pc=$('#prefChips'); pc.innerHTML=['',...prefs].map(p=>`<button class="chip" data-p="${esc(p)}" aria-pressed="${String(p===pr.pref)}">${p||'全国'}</button>`).join(''); pc.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{ pr.pref=b.dataset.p; pr.prefAuto=false; save(); renderStores(); }));
+    const sc=$('#sortChips'); sc.innerHTML=ticketChip(); sc.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{ pr.ticket=!pr.ticket; save(); renderStores(); }));
     let list=visible().filter(s=>!pr.pref||(s.pref||'その他')===pr.pref); if(q){ const k=q.toLowerCase(); list=all().filter(s=>(s.name+' '+(s.address||'')).toLowerCase().includes(k)&&(!pr.ticket||!!s.tk)); }
-    let rows=withDist(list,org); if(sortMode==='gap') rows.sort((a,b)=>gapRank[gap(a.s).k]-gapRank[gap(b.s).k]||gap(b.s).d-gap(a.s).d);;
+    let rows=withDist(list,org);
     $('#hdrSub').textContent=q?`「${q}」で ${list.length}店${pr.ticket?' ・ チケットが使える店':''}`:`${pr.pref||'全国'} ${list.length}店 ・ ${pr.ticket?'チケットが使える店':pr.books?'本がある店':'すべて'}`;
     const ul=$('#storeList'); if(!rows.length){ ul.innerHTML='<li class="empty">該当する店がありません。</li>'; return; }
     ul.innerHTML=rows.map(({s,km})=>{ const n=visitsOf(s.id).length, l=lastVisit(s.id), g=gap(s); return `<li><button class="card" data-id="${s.id}"><div class="name">${esc(s.name)}${ticketMark(s)}</div><div class="addr">${esc(s.address||'')}</div><div class="tagrow">${statusTag(s)}<span class="num small muted">${esc(s.hours||'')}</span>${km!=null?`<span class="tag num">${kmTxt(km)}km</span>`:''}<span class="tag ${g.cls}">${g.label}</span>${inPlan(s.id)?'<span class="tag today">今日の予定</span>':''}${state.hidden.includes(s.id)?'<span class="tag">非表示</span>':''}</div><div class="meta"><div class="cnt num">${n}<small>回</small></div><div class="last">${l?`最終 ${fmtShort(l)}`:'—'}</div></div></button></li>`; }).join('');
