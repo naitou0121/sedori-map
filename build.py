@@ -48,7 +48,31 @@ if tf.exists():
         hit+=1
     ticket_meta={'name':tj.get('name','ブックチケット'),'fetchedAt':tj.get('fetchedAt',''),'count':hit,'source':tj.get('source',''),'open':tj.get('open','https://www.sub-ticket.jp/mypage/'),'regions':{r['name']:r['id'] for r in tj.get('regions',[])}}
     print(f"  ブックチケット: {hit}/{len(tj['stores'])}店に印" + (f" ・ 合わなかった店 {miss}" if miss else ''))
-(root/'data/stores.json').write_text(json.dumps({'builtAt':datetime.date.today().isoformat(),'chains':chains,'count':len(stores),'ticket':ticket_meta,'stores':stores},ensure_ascii=False,separators=(',',':')))
+# ---- 1.6 駐車場（data/parking.json＝公式の各店ページ「駐車場」欄。fetch_parking.py が作る） ----
+# pk: n=なし p=有料 c=条件つき（買い物で無料・提携など） f=無料 y=あり（料金の記載なし） / pkn: 公式の記載そのまま
+def park_kind(v):
+    v=unicodedata.normalize('NFKC',v or '').strip()
+    if not v: return ''
+    if re.match(r'(なし|無し|無$|ありません|ございません)',v): return 'n'
+    if re.search(r'無料|円|割引|サービス券|駐車券|提携|買い上げ|お買上|ご利用の(方|お客)|コインパーキング|契約',v): return 'c' if not re.fullmatch(r'(あり|有り)?[（(]?\d*台?[）)]?[ /]*(無料|駐車場無料|駐車無料)[。]?',v) else 'f'
+    if re.search(r'有料',v): return 'p'
+    if re.search(r'あり|有|台',v): return 'y'
+    return ''
+park_meta=None
+pf=root/'data/parking.json'
+for s in stores: s.pop('pk',None); s.pop('pkn',None)
+if pf.exists():
+    pj=json.loads(pf.read_text()); pm=pj.get('stores',{}); cnt={}
+    for s in stores:
+        v=pm.get(s['id'])
+        if v is None: continue
+        k=park_kind(v)
+        if k: s['pk']=k
+        if v and not re.fullmatch(r'なし',v): s['pkn']=v
+        cnt[k or '不明']=cnt.get(k or '不明',0)+1
+    park_meta={'fetchedAt':pj.get('fetchedAt',''),'count':sum(n for k,n in cnt.items() if k in 'fpcy' and k),'source':pj.get('source','')}
+    print('  駐車場:',' '.join(f"{ {'n':'なし','p':'有料','c':'条件つき','f':'無料','y':'あり'}.get(k,k)}{n}" for k,n in sorted(cnt.items())))
+(root/'data/stores.json').write_text(json.dumps({'builtAt':datetime.date.today().isoformat(),'chains':chains,'count':len(stores),'ticket':ticket_meta,'parking':park_meta,'stores':stores},ensure_ascii=False,separators=(',',':')))
 
 # ---- 2. index.html ----
 body=(root/'src/body.html').read_text()

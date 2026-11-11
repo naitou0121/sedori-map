@@ -64,6 +64,11 @@ a.chip.go{display:inline-flex;align-items:center;gap:6px;text-decoration:none;ba
 .tag.today{background:var(--ok-soft);color:var(--ok);font-weight:700}
 .tag.tk{background:var(--accent-soft);color:var(--accent);font-weight:700}
 .tkmark{display:inline-block;margin-left:8px;padding:1px 8px;border-radius:999px;background:var(--accent);color:var(--accent-fg);font-size:11px;font-weight:700;line-height:1.6;vertical-align:2px;white-space:nowrap}
+.tag.pkf{background:var(--ok-soft);color:var(--ok);font-weight:700}
+.tag.pkp{background:var(--danger-soft);color:var(--danger);font-weight:700}
+.tag.pkc{background:var(--warn-soft);color:var(--warn);font-weight:700}
+.tag.pky{background:var(--chip);color:var(--ink);font-weight:700}
+.tag.pkn{background:transparent;border:1px solid var(--line);color:var(--muted)}
 .tag.custom{border:1px dashed var(--line);background:transparent}
 .near{display:grid;grid-template-columns:58px 1fr auto;gap:4px 10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;min-height:72px}
 .near .km{font-family:var(--font-num);font-size:18px;font-weight:600;line-height:1.1;text-align:center}
@@ -218,6 +223,7 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
         <h2>入っている店</h2>
         <div id="chainStats"></div>
         <div class="kv" id="rowTicket" hidden><span>ブックチケットが使える店<span class="small muted" id="statTicketAt"></span></span><span class="num" id="statTicket">0</span></div>
+        <div class="kv" id="rowPark" hidden><span>駐車場がある店<span class="small muted" id="statParkAt"></span></span><span class="num" id="statPark">0</span></div>
         <div class="kv"><span>自分で足した店</span><span class="num" id="statCustom">0</span></div>
         <div class="kv"><span>訪問記録</span><span class="num" id="statVisits">0</span></div>
         <p class="note" style="margin-top:8px">営業時間は変わることがあります。祝日や臨時休業は入っていません。行く前に、店の詳細の「公式ページ」で確かめてください。</p>
@@ -267,17 +273,17 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   let storageOk=true;
   function load(){ try{ const raw=localStorage.getItem(KEY); if(raw){ const s=JSON.parse(raw); if(s&&Array.isArray(s.visits)) return s; } }catch(e){ storageOk=false; } return null; }
   function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){ storageOk=false; toast('保存できませんでした'); } }
-  const defPrefs=()=>({books:true,pref:'',chainsOff:[],ticket:false,fav:false});
+  const defPrefs=()=>({books:true,pref:'',chainsOff:[],ticket:false,fav:false,park:false});
   let state=load()||{visits:[],custom:[],hidden:[],snooze:{},home:null,prefs:defPrefs(),plan:{date:todayStr(),items:[]}};
-  state.visits=state.visits||[]; state.favs=state.favs||[]; state.custom=state.custom||[]; state.hidden=state.hidden||[]; state.snooze=state.snooze||{}; state.prefs={...defPrefs(),...(state.prefs||{})}; state.prefs.chainsOff=state.prefs.chainsOff||[]; state.plan=state.plan||{date:todayStr(),items:[]};
+  state.visits=state.visits||[]; state.favs=state.favs||[]; state.park=state.park||{}; state.custom=state.custom||[]; state.hidden=state.hidden||[]; state.snooze=state.snooze||{}; state.prefs={...defPrefs(),...(state.prefs||{})}; state.prefs.chainsOff=state.prefs.chainsOff||[]; state.plan=state.plan||{date:todayStr(),items:[]};
   // 2026-11-11：近く＋店舗を1画面に。本がある店／全部の店・距離の範囲の切り替えは廃止（本がある店だけ・近い順）。県は「近く」を初期値に戻す
   state.prefs.books=true; delete state.prefs.radius; delete state.prefs.prefAuto; if(!state.prefs.v2){ state.prefs.pref=''; state.prefs.v2=true; }
 
   // ---- 店舗データ ----
   // data/stores.json は build.py が data/sources/*.json（チェーンごと）を合流させたもの。chains に各チェーンの名前・色・出どころが入る
-  let stores=[], chains=[], storesMeta={builtAt:'',count:0}, ticketMeta=null;
+  let stores=[], chains=[], storesMeta={builtAt:'',count:0}, ticketMeta=null, parkMeta=null;
   const DEF_CHAIN={id:'bookoff',name:'ブックオフ',short:'BO',color:'#1a5fb4',books:true,source:'bookoff.co.jp 店舗検索'};
-  function applyStores(j){ ticketMeta=j.ticket||null; chains=(j.chains&&j.chains.length)?j.chains:[{...DEF_CHAIN,fetchedAt:j.fetchedAt||'',count:(j.stores||[]).length}]; storesMeta={builtAt:j.builtAt||j.fetchedAt||'',count:(j.stores||[]).length}; stores=(j.stores||[]).filter(s=>!/閉店/.test(s.brand||'')&&hasGeo(s)).map(s=>({...s,chain:s.chain||'bookoff',builtin:true})); }
+  function applyStores(j){ ticketMeta=j.ticket||null; parkMeta=j.parking||null; chains=(j.chains&&j.chains.length)?j.chains:[{...DEF_CHAIN,fetchedAt:j.fetchedAt||'',count:(j.stores||[]).length}]; storesMeta={builtAt:j.builtAt||j.fetchedAt||'',count:(j.stores||[]).length}; stores=(j.stores||[]).filter(s=>!/閉店/.test(s.brand||'')&&hasGeo(s)).map(s=>({...s,chain:s.chain||'bookoff',builtin:true})); }
   async function loadStores(){
     try{ const c=localStorage.getItem(STORES_CACHE); if(c){ applyStores(JSON.parse(c)); } }catch(e){}
     try{ const r=await fetch('./data/stores.json',{cache:'no-cache'}); if(r.ok){ const j=await r.json(); applyStores(j); try{ localStorage.setItem(STORES_CACHE,JSON.stringify(j)); }catch(e){} } }catch(e){}
@@ -292,7 +298,7 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   const all=()=>[...stores,...state.custom];
   const byId=id=>all().find(s=>s.id===id);
   const isFav=id=>state.favs.includes(id);
-  const visible=()=>all().filter(s=>!state.hidden.includes(s.id)&&chainOn(s)&&isBook(s)&&(!state.prefs.ticket||!!s.tk)&&(!state.prefs.fav||isFav(s.id)));
+  const visible=()=>all().filter(s=>!state.hidden.includes(s.id)&&chainOn(s)&&isBook(s)&&(!state.prefs.ticket||!!s.tk)&&parkOk(s)&&(!state.prefs.fav||isFav(s.id)));
   const STAR='<svg viewBox="0 0 24 24"><path d="M12 3.6l2.6 5.3 5.8.8-4.2 4.1 1 5.8-5.2-2.7-5.2 2.7 1-5.8-4.2-4.1 5.8-.8z"/></svg>';
   const favMark=s=>isFav(s.id)?`<span class="favmark" aria-label="お気に入り">${STAR}</span>`:'';
   function toggleFav(id){ const i=state.favs.indexOf(id); if(i>=0){ state.favs.splice(i,1); toast('お気に入りから外しました'); } else { state.favs.push(id); toast('お気に入りに入れました'); } save(); render(); }
@@ -302,6 +308,16 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   const ticketMark=s=>s.tk?'<span class="tkmark">チケット可</span>':'';
   const ticketOpen=()=>hasTicket()?`<a class="chip go" href="${esc((ticketMeta&&ticketMeta.open)||'https://www.sub-ticket.jp/mypage/')}" target="_blank" rel="noopener">チケットを開く</a>`:'';
   const ticketChip=()=>hasTicket()?`<button class="chip" data-k="tk:1" aria-pressed="${String(!!state.prefs.ticket)}">チケット可</button>`:'';
+  // ---- 駐車場（公式ページの記載は data/parking.json → build.py が s.pk / s.pkn に入れる。自分で押した記録 state.park が優先）----
+  // f=無料 p=有料 c=条件つき（買い物で無料・提携など） y=あり（料金の記載なし） n=なし
+  const PK={f:{t:'P無料',c:'pkf'},p:{t:'P有料',c:'pkp'},c:{t:'P条件あり',c:'pkc'},y:{t:'Pあり',c:'pky'},n:{t:'Pなし',c:'pkn'}};
+  const parkOf=s=>state.park[s.id]||s.pk||'';
+  const parkCars=s=>{ const m=/(\d+)\s*台/.exec(s.pkn||''); return m?m[1]:''; };
+  const parkTag=s=>{ const k=parkOf(s); if(!PK[k]) return ''; const n=k!=='n'?parkCars(s):''; return `<span class="tag ${PK[k].c}">${PK[k].t}${n?` <span class="num">${n}台</span>`:''}</span>`; };
+  const hasPark=()=>stores.some(s=>s.pk)||Object.keys(state.park).length>0;
+  const parkChip=()=>hasPark()?`<button class="chip" data-k="pk:1" aria-pressed="${String(!!state.prefs.park)}">駐車場あり</button>`:'';
+  const parkOk=s=>!state.prefs.park||(!!parkOf(s)&&parkOf(s)!=='n');
+  const setPark=(id,v)=>{ if(v) state.park[id]=v; else delete state.park[id]; save(); };
   const visitsOf=id=>state.visits.filter(v=>v.storeId===id).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
   const lastVisit=id=>visitsOf(id)[0]?.date||null;
   const visitedToday=id=>state.visits.some(v=>v.storeId===id&&v.date===todayStr());
@@ -402,8 +418,8 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
       $('#locPlaceGo').addEventListener('click',go); $('#locPlace').addEventListener('keydown',e=>{ if(e.key==='Enter'){ e.preventDefault(); go(); } });
     }
     // 絞り込み：お気に入り／チケット（＋チェーンが2つ以上ある時だけチェーン）
-    const f=$('#nearFilters'); f.innerHTML=favChip()+ticketChip()+ticketOpen()+chainChips();
-    f.querySelectorAll('button.chip').forEach(b=>b.addEventListener('click',()=>{ const [k,v]=b.dataset.k.split(':'); if(k==='chain') toggleChain(v); else if(k==='tk') pr.ticket=!pr.ticket; else if(k==='fav') pr.fav=!pr.fav; nearLimit=40; save(); renderNear(); }));
+    const f=$('#nearFilters'); f.innerHTML=favChip()+ticketChip()+parkChip()+ticketOpen()+chainChips();
+    f.querySelectorAll('button.chip').forEach(b=>b.addEventListener('click',()=>{ const [k,v]=b.dataset.k.split(':'); if(k==='chain') toggleChain(v); else if(k==='tk') pr.ticket=!pr.ticket; else if(k==='pk') pr.park=!pr.park; else if(k==='fav') pr.fav=!pr.fav; nearLimit=40; save(); renderNear(); }));
     // 県：先頭の「近く」は県で絞らず、いま居る所から近い順。県は近い順に並べる
     const base=visible(); const km0={}; if(org) withDist(base,org).forEach(r=>{ const p=r.s.pref||'その他'; if(km0[p]==null) km0[p]=r.km; });
     const prefs=[...new Set(base.map(s=>s.pref||'その他'))].sort((a,b)=>org?((km0[a]??1e9)-(km0[b]??1e9)):a.localeCompare(b,'ja'));
@@ -412,18 +428,18 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
     pc.querySelectorAll('.chip').forEach(b=>b.addEventListener('click',()=>{ pr.pref=b.dataset.p; nearLimit=40; save(); renderNear(); }));
     // 並べる店：検索中は全国から（絞り込みは効かせる）。県を選んでいればその県。どちらでもなければ近い順
     let pool=base, label;
-    if(q){ const k=q.toLowerCase(); pool=all().filter(s=>!state.hidden.includes(s.id)&&(s.name+' '+(s.address||'')).toLowerCase().includes(k)&&(!pr.ticket||!!s.tk)&&(!pr.fav||isFav(s.id))); label=`「${q}」で`; }
+    if(q){ const k=q.toLowerCase(); pool=all().filter(s=>!state.hidden.includes(s.id)&&(s.name+' '+(s.address||'')).toLowerCase().includes(k)&&(!pr.ticket||!!s.tk)&&parkOk(s)&&(!pr.fav||isFav(s.id))); label=`「${q}」で`; }
     else if(pr.pref){ pool=base.filter(s=>(s.pref||'その他')===pr.pref); label=pr.pref; }
     else label=org?`${org.name}から近い順`:'現在地なし';
     const allRows=withDist(pool,org); const rows=allRows.slice(0,nearLimit);
-    const extra=[pr.fav?'お気に入り':'',pr.ticket?'チケットが使える店':''].filter(Boolean).join(' ・ ');
-    $('#hdrSub').textContent=`${label}${(q||pr.pref||pr.fav||pr.ticket)?` ${allRows.length}店`:''}${extra?' ・ '+extra:''}`;
+    const extra=[pr.fav?'お気に入り':'',pr.ticket?'チケットが使える店':'',pr.park?'駐車場がある店':''].filter(Boolean).join(' ・ ');
+    $('#hdrSub').textContent=`${label}${(q||pr.pref||pr.fav||pr.ticket||pr.park)?` ${allRows.length}店`:''}${extra?' ・ '+extra:''}`;
     const list=$('#nearList'); const needOrg=!org&&!q&&!pr.pref&&!pr.fav;
     if(needOrg){ list.innerHTML='<div class="empty">現在地か出発地が要ります。上の「現在地を取る」を押すか、地名を入れて「ここから測る」を押してください。県を選べば、その県の店は見られます。</div>'; }
     else if(!rows.length){ list.innerHTML=`<div class="empty">${pr.fav&&!state.favs.length?'お気に入りはまだありません。店の左の星を押すと入ります。':'当てはまる店がありません。'}</div>`; }
     else list.innerHTML=rows.map(({s,km})=>{ const g=gap(s); const today=visitedToday(s.id); const fv=isFav(s.id);
       return `<div class="near" data-id="${s.id}"><div><div class="km">${km==null?'—':kmTxt(km)}<small>${km==null?'':'km'}</small></div><button class="fav ${fv?'on':''}" data-act="fav" aria-label="${fv?'お気に入りから外す':'お気に入りに入れる'}" aria-pressed="${fv}">${STAR}</button></div>
-        <button class="body" data-act="open"><div class="nm">${esc(s.name)}${ticketMark(s)}</div><div class="ln">${statusTag(s)}<span class="num">${esc(s.hours||'')}</span>${brandTag(s)}<span class="tag ${g.cls}">${g.label}</span>${inPlan(s.id)?'<span class="tag today">今日の予定</span>':''}</div></button>
+        <button class="body" data-act="open"><div class="nm">${esc(s.name)}${ticketMark(s)}</div><div class="ln">${statusTag(s)}<span class="num">${esc(s.hours||'')}</span>${brandTag(s)}${parkTag(s)}<span class="tag ${g.cls}">${g.label}</span>${inPlan(s.id)?'<span class="tag today">今日の予定</span>':''}</div></button>
         <div class="acts"><a class="ib" href="${mapsUrl(s)}" target="_blank" rel="noopener" aria-label="Googleマップ"><svg viewBox="0 0 24 24"><path d="M12 21s-6-5.3-6-11a6 6 0 0 1 12 0c0 5.7-6 11-6 11z"/><circle cx="12" cy="10" r="2.2"/></svg></a><button class="ib ${today?'done':''}" data-act="visit">${today?'✓済':'行った'}</button></div></div>`; }).join('');
     $('#moreRow').hidden=needOrg||allRows.length<=nearLimit;
     list.querySelectorAll('[data-act="open"]').forEach(b=>b.addEventListener('click',()=>openSheet(b.closest('.near').dataset.id)));
@@ -471,11 +487,11 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   const FLAG='<svg viewBox="0 0 30 34"><path class="fl" d="M7 4h18l-5 6.5 5 6.5H7z"/><path class="po" d="M7 3v29"/></svg>';
   const pinIcon=(cls,label)=>L.divIcon({className:'',html:`<div class="pin ${cls}">${BOOK}${label||''}</div>`,iconSize:[28,28],iconAnchor:[14,14],popupAnchor:[0,-14]});
   const flagIcon=cls=>L.divIcon({className:'',html:`<div class="flagpin ${cls}">${FLAG}</div>`,iconSize:[30,34],iconAnchor:[7,32],popupAnchor:[8,-30]});
-  function popupHTML(s){ const l=lastVisit(s.id), st=openStatus(s), p=inPlan(s.id); return `<div class="pop"><b>${esc(s.name)}</b>${favMark(s)}${ticketMark(s)}<br><span class="small muted">${esc(s.address||'')}</span><br><span class="tag ${st.k}">${esc(st.short)}</span> <span class="num small">${esc(s.hours||'')}</span><br><span class="small">${l?`最終 ${fmt(l)}（${daysAgo(l)}日前）・${visitsOf(s.id).length}回`:'未訪問'}</span><div class="row"><button class="btn ok" data-pop="visit" data-id="${s.id}" ${visitedToday(s.id)?'disabled':''}>${visitedToday(s.id)?'✓ 今日記録済み':'今日行った'}</button><button class="btn ${p?'':'soft'}" data-pop="plan" data-id="${s.id}">${p?'予定から外す':'予定に入れる'}</button><button class="btn" data-pop="open" data-id="${s.id}">詳細</button></div></div>`; }
+  function popupHTML(s){ const l=lastVisit(s.id), st=openStatus(s), p=inPlan(s.id); return `<div class="pop"><b>${esc(s.name)}</b>${favMark(s)}${ticketMark(s)}<br><span class="small muted">${esc(s.address||'')}</span><br><span class="tag ${st.k}">${esc(st.short)}</span> <span class="num small">${esc(s.hours||'')}</span> ${parkTag(s)}<br><span class="small">${l?`最終 ${fmt(l)}（${daysAgo(l)}日前）・${visitsOf(s.id).length}回`:'未訪問'}</span><div class="row"><button class="btn ok" data-pop="visit" data-id="${s.id}" ${visitedToday(s.id)?'disabled':''}>${visitedToday(s.id)?'✓ 今日記録済み':'今日行った'}</button><button class="btn ${p?'':'soft'}" data-pop="plan" data-id="${s.id}">${p?'予定から外す':'予定に入れる'}</button><button class="btn" data-pop="open" data-id="${s.id}">詳細</button></div></div>`; }
   function drawPins(){ if(!map) return; layer.clearLayers(); const b=map.getBounds(); const list=visible().filter(s=>b.contains([s.lat,s.lng])); const org=origin(); list.forEach(s=>{ const g=gap(s); const st=openStatus(s); const cls=(g.k==='ok'?'':g.k==='over'||g.k==='soon'?'old':'none')+(st.k==='closed'||st.k==='before'?' closed':''); const ch=chainOf(s); const m=L.marker([s.lat,s.lng],{icon:s.builtin?pinIcon(cls,chains.length>1&&ch?`<i class="ch" style="--c:${esc(ch.color)}"></i>`:''):flagIcon(cls)}).addTo(layer); m.bindPopup(popupHTML(s),{closeButton:false,maxWidth:280}); m.on('popupopen',()=>{ selectedId=s.id; bindPopup(); }); }); if(me){ L.marker([me.lat,me.lng],{icon:L.divIcon({className:'',html:'<div class="pin me"></div>',iconSize:[18,18],iconAnchor:[9,9]}),interactive:false}).addTo(layer); }
     const cnt={ok:0,old:0,none:0}; list.forEach(s=>{ const k=gap(s).k; cnt[k==='ok'?'ok':(k==='over'||k==='soon')?'old':'none']++; });
     $('#mapFoot').innerHTML=`<div class="legend"><span><i class="dot"></i>2週間以内</span><span><i class="dot old"></i>それより前</span><span><i class="dot none"></i>未訪問</span><span>薄い＝今は閉店</span>${state.custom.length?`<span><i class="lg">${FLAG.replace('class="fl"','fill="none" stroke="currentColor" stroke-width="2"').replace('class="po"','stroke="currentColor" stroke-width="2"')}</i>旗＝自分で足した店</span>`:''}${me?'<span><i class="dot me"></i>現在地</span>':''}</div><div class="note">この範囲に ${list.length}店（2週間以内 ${cnt.ok} ・ 前に ${cnt.old} ・ 未訪問 ${cnt.none}）${org?'':' ・ 現在地なし'}</div>`; }
-  function renderMap(){ ensureMap(); if(!map) return; const pr=state.prefs; $('#hdrSub').textContent='ピンを押すと店の情報'; const mc=$('#mapChips'); mc.innerHTML=favChip()+ticketChip()+ticketOpen()+chainChips()+'<button class="chip" id="mapMe">現在地へ</button>'; mc.querySelectorAll('.chip[data-k]').forEach(b=>b.addEventListener('click',()=>{ const [k,v]=b.dataset.k.split(':'); if(k==='tk') pr.ticket=!pr.ticket; else if(k==='fav') pr.fav=!pr.fav; else toggleChain(v); save(); drawPins(); renderMap(); })); $('#mapMe').addEventListener('click',async()=>{ const p=await currentPos(true); if(p) map.setView([p.lat,p.lng],12); else toast('現在地が取れません'); }); setTimeout(()=>{ map.invalidateSize(); drawPins(); },50); }
+  function renderMap(){ ensureMap(); if(!map) return; const pr=state.prefs; $('#hdrSub').textContent='ピンを押すと店の情報'; const mc=$('#mapChips'); mc.innerHTML=favChip()+ticketChip()+parkChip()+ticketOpen()+chainChips()+'<button class="chip" id="mapMe">現在地へ</button>'; mc.querySelectorAll('.chip[data-k]').forEach(b=>b.addEventListener('click',()=>{ const [k,v]=b.dataset.k.split(':'); if(k==='tk') pr.ticket=!pr.ticket; else if(k==='pk') pr.park=!pr.park; else if(k==='fav') pr.fav=!pr.fav; else toggleChain(v); save(); drawPins(); renderMap(); })); $('#mapMe').addEventListener('click',async()=>{ const p=await currentPos(true); if(p) map.setView([p.lat,p.lng],12); else toast('現在地が取れません'); }); setTimeout(()=>{ map.invalidateSize(); drawPins(); },50); }
   function bindPopup(){ document.querySelectorAll('.leaflet-popup [data-pop]').forEach(b=>{ if(b._bound) return; b._bound=true; b.addEventListener('click',()=>{ const id=b.dataset.id; if(b.dataset.pop==='open'){ map.closePopup(); openSheet(id); } else if(b.dataset.pop==='visit'){ recordVisit(id); map.closePopup(); drawPins(); } else { togglePlan(id); map.closePopup(); drawPins(); } }); }); }
 
   // ---- 履歴 ----
@@ -488,6 +504,7 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
     document.querySelectorAll('#chainStats [data-chain]').forEach(b=>b.addEventListener('click',()=>{ toggleChain(b.dataset.chain); renderSettings(); }));
     $('#brandList').innerHTML=[...new Set(state.custom.map(s=>s.brand).filter(Boolean))].map(b=>`<option value="${esc(b)}">`).join('');
     $('#hiddenSec').hidden=!state.hidden.filter(id=>byId(id)).length;
+    if(parkMeta){ $('#rowPark').hidden=false; $('#statPark').textContent=stores.filter(x=>x.pk&&x.pk!=='n').length+'店'; $('#statParkAt').textContent=parkMeta.fetchedAt?` ・ ${fmt(parkMeta.fetchedAt)} 時点`:''; }
     if(ticketMeta){ $('#rowTicket').hidden=false; $('#statTicket').textContent=stores.filter(x=>x.tk).length+'店'; $('#statTicketAt').textContent=ticketMeta.fetchedAt?` ・ ${fmt(ticketMeta.fetchedAt)} 時点`:''; }
     $('#statCustom').textContent=state.custom.length; $('#statVisits').textContent=state.visits.length; if(document.activeElement!==$('#homeAddr')) $('#homeAddr').value=state.home?.address||''; $('#homeStat').textContent=state.home?(hasGeo(state.home)?'位置あり':'位置が取れていません'):'未設定'; $('#statVer').textContent=document.querySelector('meta[name=app-version]')?.content||'—'; $('#statLoc').textContent={ok:'取得できています',denied:'許可されていません',timeout:'応答なし（時間切れ）',unavailable:'場所が取れません',asking:'確認中',idle:'未取得',none:'この端末では使えません',stale:'前回の位置を使用',error:'エラー'}[locState]||locState;
     const hl=$('#hiddenList'); const hs=state.hidden.map(byId).filter(Boolean); hl.innerHTML=hs.length?hs.map(s=>`<div class="kv"><span>${esc(s.name)}</span><button class="linkish" data-unhide="${s.id}">戻す</button></div>`).join(''):'なし'; hl.querySelectorAll('[data-unhide]').forEach(b=>b.addEventListener('click',()=>{ state.hidden=state.hidden.filter(x=>x!==b.dataset.unhide); save(); renderSettings(); })); }
@@ -497,7 +514,7 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   $('#btnBulkAdd').addEventListener('click',async()=>{ const b=$('#btnBulkAdd'), msg=$('#bulkMsg'); const lines=$('#bulkText').value.split(/\n/).map(l=>l.trim()).filter(Boolean); if(!lines.length){ msg.textContent='1行も入っていません'; return; } b.disabled=true; let ok=0; const bad=[]; for(let i=0;i<lines.length;i++){ msg.textContent=`${i+1}/${lines.length} 位置を取得中…`; const [name,address,hours,brand]=lines[i].split(/[,，\t]/).map(x=>(x||'').trim()); if(!name||!address){ bad.push(lines[i]); continue; } if(state.custom.some(s=>s.name===name&&s.address===address)){ continue; } const s=await makeCustom(name,address,hours,brand); if(s){ state.custom.push(s); ok++; save(); } else bad.push(lines[i]); await new Promise(r=>setTimeout(r,600)); } b.disabled=false; $('#bulkText').value=bad.join('\n'); msg.textContent=`${ok}店を追加しました${bad.length?`。${bad.length}行は位置が取れず残しました（住所を直して再実行）`:''}`; toast(`${ok}店を追加しました`); renderSettings(); });
   $('#btnExport').addEventListener('click',()=>{ const ta=$('#exportText'); ta.value=JSON.stringify({app:'sedori-map',v:1,exportedAt:new Date().toISOString(),...state}); ta.hidden=false; $('#btnCopyExport').hidden=false; ta.focus(); ta.select(); });
   $('#btnCopyExport').addEventListener('click',()=>{ const ta=$('#exportText'); const ok=()=>toast('コピーしました'); if(navigator.clipboard?.writeText) navigator.clipboard.writeText(ta.value).then(ok).catch(()=>{ ta.select(); toast('全選択しました。長押しでコピー'); }); else { ta.select(); toast('全選択しました。長押しでコピー'); } });
-  let restoreArmed=false; $('#btnRestore').addEventListener('click',()=>{ const msg=$('#restoreMsg'); let d; try{ d=JSON.parse($('#restoreText').value); }catch(e){ msg.textContent='読み取れませんでした。'; return; } if(!d||!Array.isArray(d.visits)){ msg.textContent='このアプリの控えではないようです。'; return; } if(!restoreArmed){ restoreArmed=true; msg.textContent=`訪問記録${d.visits.length}件で今の内容（${state.visits.length}件）を置き換えます。もう一度押すと実行。`; setTimeout(()=>{ restoreArmed=false; },6000); return; } state={visits:d.visits,favs:d.favs||[],custom:d.custom||[],hidden:d.hidden||[],snooze:d.snooze||{},home:d.home||null,prefs:{...defPrefs(),...(d.prefs||{})},plan:d.plan||{date:todayStr(),items:[]}}; state.prefs.chainsOff=state.prefs.chainsOff||[]; save(); restoreArmed=false; msg.textContent='戻しました。'; $('#restoreText').value=''; render(); });
+  let restoreArmed=false; $('#btnRestore').addEventListener('click',()=>{ const msg=$('#restoreMsg'); let d; try{ d=JSON.parse($('#restoreText').value); }catch(e){ msg.textContent='読み取れませんでした。'; return; } if(!d||!Array.isArray(d.visits)){ msg.textContent='このアプリの控えではないようです。'; return; } if(!restoreArmed){ restoreArmed=true; msg.textContent=`訪問記録${d.visits.length}件で今の内容（${state.visits.length}件）を置き換えます。もう一度押すと実行。`; setTimeout(()=>{ restoreArmed=false; },6000); return; } state={visits:d.visits,favs:d.favs||[],park:d.park||{},custom:d.custom||[],hidden:d.hidden||[],snooze:d.snooze||{},home:d.home||null,prefs:{...defPrefs(),...(d.prefs||{})},plan:d.plan||{date:todayStr(),items:[]}}; state.prefs.chainsOff=state.prefs.chainsOff||[]; save(); restoreArmed=false; msg.textContent='戻しました。'; $('#restoreText').value=''; render(); });
   $('#btnCheckUpdate').addEventListener('click',async()=>{ try{ const r=await navigator.serviceWorker?.getRegistration(); if(r){ await r.update(); toast(r.waiting||r.installing?'新しい版を取り込み中':'この版が最新です'); } else toast('ブラウザ表示です'); }catch(e){ toast('確認できませんでした'); } });
 
   // ---- 詳細シート ----
@@ -511,6 +528,7 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
     inner.innerHTML=`<div class="row" style="margin-bottom:4px">${s.builtin?`<span class="tag chain" style="--c:${esc(chainOf(s).color)}">${esc(chainOf(s).name)}</span>${s.brand&&s.brand!==chainOf(s).name?`<span class="tag brand">${esc(s.brand)}</span>`:''}`:brandTag(s)}${s.pref?`<span class="tag">${esc(s.pref)}${esc(s.city||'')}</span>`:''}${km!=null?`<span class="tag num">${org.name}から${kmTxt(km)}km</span>`:''}</div>
       <h2 id="shName">${esc(s.name)}${ticketMark(s)}</h2><div class="addr">${esc(s.address||'住所なし')}${s.tel?` ・ <span class="num">${esc(s.tel)}</span>`:''}</div>
       <div class="hoursbox"><div><span class="tag ${st.k}">${esc(st.label)}</span></div><div style="margin-top:4px">営業時間 <b class="num">${esc(s.hours||'不明')}</b>${s.hours2?`<br><span class="small muted">別の時間帯の記載：${esc(s.hours2)}</span>`:''}</div><div class="small muted" style="margin-top:2px">${s.builtin?`${esc(chainOf(s).source||'公式サイト')}より。祝日・臨時休業は未反映`:'自分で入れた時間'}</div></div>
+      <div class="hoursbox"><div>駐車場 ${parkTag(s)||'<span class="tag">不明</span>'}${state.park[s.id]?'<span class="small muted"> 自分の記録</span>':''}</div>${s.pkn?`<div class="small" style="margin-top:4px">公式の記載：${esc(s.pkn)}</div>`:''}<div class="row" style="margin-top:8px">${[['f','無料だった'],['p','有料だった'],['n','駐車場なし']].map(([k,l])=>`<button class="btn ${state.park[s.id]===k?'soft':''}" data-park="${k}" aria-pressed="${state.park[s.id]===k}">${l}</button>`).join('')}${state.park[s.id]?'<button class="btn" data-park="">記録を消す</button>':''}</div><div class="small muted" style="margin-top:6px">${s.builtin&&parkMeta?`公式ページ${parkMeta.fetchedAt?`の ${fmt(parkMeta.fetchedAt)} 時点`:''}の記載より。料金が書かれていない店が多いので、停めた時に押しておくと次から一覧に出ます`:'停めた時に押しておくと、次から一覧に出ます'}</div></div>
       <div class="row"><a class="btn soft" href="${mapsUrl(s)}" target="_blank" rel="noopener">Googleマップ</a>${s.url?`<a class="btn" href="${esc(s.url)}" target="_blank" rel="noopener">公式ページ</a>`:''}<button class="btn ${planned?'':'soft'}" id="shPlan">${planned?'予定から外す':'今日の予定に入れる'}</button><button class="btn ${isFav(s.id)?'soft':''}" id="shFav"><span class="star ${isFav(s.id)?'on':''}" style="display:inline-grid">${STAR.replace('<svg','<svg class="star '+(isFav(s.id)?'on':'')+'"')}</span>${isFav(s.id)?'お気に入り':'お気に入りに入れる'}</button></div>
       <div class="stats"><div class="stat"><div class="k">累計</div><div class="v">${vs.length}<span class="small muted"> 回</span></div></div><div class="stat"><div class="k">最終</div><div class="v">${last?fmtShort(last):'—'}</div><div class="small"><span class="tag ${g.cls}">${g.label}</span></div></div></div>
       <button class="btn ok big block" id="shToday" ${today?'disabled':''}>${today?'✓ 今日の訪問は記録済み':'今日行った'}</button>
@@ -523,6 +541,7 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
     $('#shAddDate').addEventListener('click',()=>{ const d=$('#shDate').value; if(!d||d>t) return; if(recordVisit(s.id,d)) renderSheet(); });
     $('#shPlan').addEventListener('click',()=>{ togglePlan(s.id); renderSheet(); render(); });
     $('#shFav').addEventListener('click',()=>{ toggleFav(s.id); renderSheet(); });
+    inner.querySelectorAll('[data-park]').forEach(b=>b.addEventListener('click',()=>{ const v=b.dataset.park; setPark(s.id,state.park[s.id]===v?'':v); renderSheet(); render(); }));
     const sn=$('#shSnooze'); if(sn) sn.addEventListener('click',()=>{ const d=new Date(); d.setDate(d.getDate()+30); state.snooze[s.id]=ymd(d); save(); toast(`${fmtShort(state.snooze[s.id])}まで寝かせます`); renderSheet(); render(); });
     const un=$('#shUnsnooze'); if(un) un.addEventListener('click',()=>{ delete state.snooze[s.id]; save(); renderSheet(); render(); });
     $('#shHide').addEventListener('click',()=>{ if(hidden){ state.hidden=state.hidden.filter(x=>x!==s.id); toast('表示に戻しました'); } else { if(pendingHide!==s.id){ pendingHide=s.id; toast('もう一度押すと一覧と地図から消えます（設定で戻せます）'); setTimeout(()=>{ if(pendingHide===s.id) pendingHide=null; },4000); return; } state.hidden.push(s.id); state.plan.items=state.plan.items.filter(i=>i.storeId!==s.id); pendingHide=null; closeSheet(); toast('非表示にしました'); } save(); if(sheetId) renderSheet(); render(); });
