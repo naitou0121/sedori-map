@@ -22,7 +22,33 @@ for f in sorted((root/'data/sources').glob('*.json')):
         if s['id'] in seen: s['id']=ch['id']+'_'+s['id']
         seen.add(s['id']); stores.append(s); n+=1
     ch['count']=n; chains.append(ch); print(f"  {ch['name']}: {n}店 ({f.name})")
-(root/'data/stores.json').write_text(json.dumps({'builtAt':datetime.date.today().isoformat(),'chains':chains,'count':len(stores),'stores':stores},ensure_ascii=False,separators=(',',':')))
+# ---- 1.5 ブックチケットの対象店に印を付ける（data/ticket.json・店名と県で突き合わせる） ----
+import unicodedata
+ticket_meta=None
+tf=root/'data/ticket.json'
+if tf.exists():
+    tj=json.loads(tf.read_text())
+    def _n(x, paren=False):
+        x=unicodedata.normalize('NFKC',x).lower()
+        if not paren: x=re.sub(r'\(.*?\)','',x)
+        x=re.sub(r'^(book\s*off)\s*(super\s*bazaar|plus|総合買取窓口)?','',x.strip())
+        x=''.join(chr(ord(c)+0x60) if 'ぁ'<=c<='ゖ' else c for c in x)  # ひらがな→カタカナ（プロぺ/プロペ の揺れ）
+        return re.sub(r'[\s・\-ｰー]','',x)
+    for s in stores: s.pop('tk',None)
+    hit=0; miss=[]
+    for x in tj['stores']:
+        pool=[s for s in stores if s.get('chain')=='bookoff' and s.get('pref')==x['pref']]
+        _h=lambda v: v['name'].split(' / ')[0]  # 「A店 / 併設B店」は先頭だけ見る
+        c=[s for s in pool if _n(_h(s),True)==_n(x['name'],True)] or [s for s in pool if _n(_h(s))==_n(x['name'])]
+        if len(c)>1:
+            b=[s for s in c if '本' in s['name'].replace('本店','')]
+            if b: c=b
+        if not c: miss.append(x['pref']+' '+x['name']); continue
+        for s in c: s['tk']=x['region']
+        hit+=1
+    ticket_meta={'name':tj.get('name','ブックチケット'),'fetchedAt':tj.get('fetchedAt',''),'count':hit,'source':tj.get('source','')}
+    print(f"  ブックチケット: {hit}/{len(tj['stores'])}店に印" + (f" ・ 合わなかった店 {miss}" if miss else ''))
+(root/'data/stores.json').write_text(json.dumps({'builtAt':datetime.date.today().isoformat(),'chains':chains,'count':len(stores),'ticket':ticket_meta,'stores':stores},ensure_ascii=False,separators=(',',':')))
 
 # ---- 2. index.html ----
 body=(root/'src/body.html').read_text()
