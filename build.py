@@ -53,9 +53,13 @@ if tf.exists():
 def park_kind(v):
     v=unicodedata.normalize('NFKC',v or '').strip()
     if not v: return ''
-    if re.match(r'(なし|無し|無$|ありません|ございません)',v): return 'n'
-    if re.search(r'無料|円|割引|サービス券|駐車券|提携|買い上げ|お買上|ご利用の(方|お客)|コインパーキング|契約',v): return 'c' if not re.fullmatch(r'(あり|有り)?[（(]?\d*台?[）)]?[ /]*(無料|駐車場無料|駐車無料)[。]?',v) else 'f'
-    if re.search(r'有料',v): return 'p'
+    tie=bool(re.search(r'提携|契約|特約',v)) and '提携なし' not in v
+    free='無料' in v
+    svc=bool(re.search(r'サービス',v)) and not re.search(r'サービスは(行って|ござい|あり)',v)
+    if re.match(r'(なし|無し)',v): return 'c' if (tie or free or svc) else ('p' if 'パーキング' in v else 'n')
+    if free and not tie and not re.search(r'円|時間|\d\s*分|買|購入|お売り|券|割引|利用のお客様',v): return 'f'
+    if free or tie or svc: return 'c'
+    if re.search(r'有料|駐車料金|\d円|コインパーキング',v): return 'p'
     if re.search(r'あり|有|台',v): return 'y'
     return ''
 park_meta=None

@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="仕入れマップ">
 <meta name="theme-color" content="#8a5a2b">
-<meta name="app-version" content="202611110827">
+<meta name="app-version" content="202611110839">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" href="./icon-192.png">
@@ -329,7 +329,7 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
   // f=無料 p=有料 c=条件つき（買い物で無料・提携など） y=あり（料金の記載なし） n=なし
   const PK={f:{t:'P無料',c:'pkf'},p:{t:'P有料',c:'pkp'},c:{t:'P条件あり',c:'pkc'},y:{t:'Pあり',c:'pky'},n:{t:'Pなし',c:'pkn'}};
   const parkOf=s=>state.park[s.id]||s.pk||'';
-  const parkCars=s=>{ const m=/(\d+)\s*台/.exec(s.pkn||''); return m?m[1]:''; };
+  const parkCars=s=>{ const m=/^あり[^\/]*?([\d,]+)\s*台/.exec(s.pkn||''); return m?m[1].replace(/,/g,''):''; };
   const parkTag=s=>{ const k=parkOf(s); if(!PK[k]) return ''; const n=k!=='n'?parkCars(s):''; return `<span class="tag ${PK[k].c}">${PK[k].t}${n?` <span class="num">${n}台</span>`:''}</span>`; };
   const hasPark=()=>stores.some(s=>s.pk)||Object.keys(state.park).length>0;
   const parkChip=()=>hasPark()?`<button class="chip" data-k="pk:1" aria-pressed="${String(!!state.prefs.park)}">駐車場あり</button>`:'';
@@ -547,7 +547,7 @@ details.more{margin-top:14px;border-top:1px solid var(--line);padding-top:10px} 
       <h2 id="shName">${esc(s.name)}${ticketMark(s)}</h2><div class="addr">${esc(s.address||'住所なし')}${s.tel?` ・ <span class="num">${esc(s.tel)}</span>`:''}</div>
       <div class="hoursbox"><div><span class="tag ${st.k}">${esc(st.label)}</span></div><div style="margin-top:4px">営業時間 <b class="num">${esc(s.hours||'不明')}</b>${s.hours2?`<br><span class="small muted">別の時間帯の記載：${esc(s.hours2)}</span>`:''}</div><div class="small muted" style="margin-top:2px">${s.builtin?`${esc(chainOf(s).source||'公式サイト')}より。祝日・臨時休業は未反映`:'自分で入れた時間'}</div></div>
       ${isBook(s)?'':`<div class="hoursbox">${noBookTag(s)} ${s.buyonly?'買取専門の店で、商品の販売はありません':'この店は本を売っていません（衣料・トレカなどの専門店や、併設の別業態です）'}<div class="small muted" style="margin-top:4px">公式サイトの「買いたい商品」より。近い順の一覧と地図には出しません</div></div>`}
-      <div class="hoursbox"><div>駐車場 ${parkTag(s)||'<span class="tag">不明</span>'}${state.park[s.id]?'<span class="small muted"> 自分の記録</span>':''}</div>${s.pkn?`<div class="small" style="margin-top:4px">公式の記載：${esc(s.pkn)}</div>`:''}<div class="row" style="margin-top:8px">${[['f','無料だった'],['p','有料だった'],['n','駐車場なし']].map(([k,l])=>`<button class="btn ${state.park[s.id]===k?'soft':''}" data-park="${k}" aria-pressed="${state.park[s.id]===k}">${l}</button>`).join('')}${state.park[s.id]?'<button class="btn" data-park="">記録を消す</button>':''}</div><div class="small muted" style="margin-top:6px">${s.builtin&&parkMeta?`公式ページ${parkMeta.fetchedAt?`の ${fmt(parkMeta.fetchedAt)} 時点`:''}の記載より。料金が書かれていない店が多いので、停めた時に押しておくと次から一覧に出ます`:'停めた時に押しておくと、次から一覧に出ます'}</div></div>
+      <div class="hoursbox"><div>駐車場 ${parkTag(s)||'<span class="tag">不明</span>'}${state.park[s.id]?'<span class="small muted"> 自分の記録</span>':''}</div>${s.pkn?`<div class="small" style="margin-top:4px"><span class="muted">公式の記載</span><br>${esc(s.pkn).replace(/ \/ /g,'<br>')}</div>`:''}<div class="row" style="margin-top:8px">${[['f','無料だった'],['p','有料だった'],['n','駐車場なし']].map(([k,l])=>`<button class="btn ${state.park[s.id]===k?'soft':''}" data-park="${k}" aria-pressed="${state.park[s.id]===k}">${l}</button>`).join('')}${state.park[s.id]?'<button class="btn" data-park="">記録を消す</button>':''}</div><div class="small muted" style="margin-top:6px">${s.builtin&&parkMeta?`公式ページ${parkMeta.fetchedAt?`の ${fmt(parkMeta.fetchedAt)} 時点`:''}の記載より。料金が書かれていない店が多いので、停めた時に押しておくと次から一覧に出ます`:'停めた時に押しておくと、次から一覧に出ます'}</div></div>
       <div class="row"><a class="btn soft" href="${mapsUrl(s)}" target="_blank" rel="noopener">Googleマップ</a>${s.url?`<a class="btn" href="${esc(s.url)}" target="_blank" rel="noopener">公式ページ</a>`:''}<button class="btn ${planned?'':'soft'}" id="shPlan">${planned?'予定から外す':'今日の予定に入れる'}</button><button class="btn ${isFav(s.id)?'soft':''}" id="shFav"><span class="star ${isFav(s.id)?'on':''}" style="display:inline-grid">${STAR.replace('<svg','<svg class="star '+(isFav(s.id)?'on':'')+'"')}</span>${isFav(s.id)?'お気に入り':'お気に入りに入れる'}</button></div>
       <div class="stats"><div class="stat"><div class="k">累計</div><div class="v">${vs.length}<span class="small muted"> 回</span></div></div><div class="stat"><div class="k">最終</div><div class="v">${last?fmtShort(last):'—'}</div><div class="small"><span class="tag ${g.cls}">${g.label}</span></div></div></div>
       <button class="btn ok big block" id="shToday" ${today?'disabled':''}>${today?'✓ 今日の訪問は記録済み':'今日行った'}</button>
