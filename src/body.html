@@ -322,6 +322,15 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
     const ng=e=>{ const c=e&&e.code; locErr=`${c||''} ${e&&e.message||''}`.trim(); locState=c===1?'denied':c===3?'timeout':'unavailable'; fin(me); };
     try{ navigator.geolocation.getCurrentPosition(ok,e=>{ if(e&&e.code===1) return ng(e); try{ navigator.geolocation.getCurrentPosition(ok,ng,{timeout:10000,maximumAge:300000,enableHighAccuracy:false}); }catch(x){ ng(e); } },{timeout:7000,maximumAge:30000,enableHighAccuracy:true}); }catch(e){ locState='error'; fin(me); } });
   // 位置情報の直し方（ブラウザごと）。Webアプリから端末の「設定」は開けないので、押す場所を文で出す
+  // 現在地が取れない時に、原因を切り分けるための1行（画面に出すだけ。どこにも送らない）
+  let permState='';
+  try{ if(navigator.permissions&&navigator.permissions.query) navigator.permissions.query({name:'geolocation'}).then(r=>{ permState=r.state; const el=document.getElementById('locDiag'); if(el) el.textContent='診断：'+locDiag(); }).catch(()=>{}); }catch(e){}
+  function locDiag(){
+    const ua=navigator.userAgent||''; const br=/CriOS/.test(ua)?'Chrome':/FxiOS/.test(ua)?'Firefox':/EdgiOS/.test(ua)?'Edge':/Line\//.test(ua)?'LINE内':/Instagram|FBAN|FBAV/.test(ua)?'アプリ内ブラウザ':/Safari/.test(ua)?'Safari':'その他';
+    const os=(ua.match(/OS (\d+)[_.]/)||[])[1]||''; const sa=window.navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
+    const v=document.querySelector('meta[name=app-version]')?.content||'';
+    return `版${v}／${br}${os?' iOS'+os:''}${sa?'・ホーム画面':''}／状態 ${locState}／許可 ${permState||'不明'}／返事 ${locErr||'なし'}／https ${window.isSecureContext?'○':'×'}`;
+  }
   function locHelp(){
     const ua=navigator.userAgent||''; const ios=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
     const standalone=window.navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
@@ -371,7 +380,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
       const why=(st==='timeout'||st==='unavailable')?'屋内や地下だと時間がかかります。窓際や外でもう一度「現在地を取る」を押すか、下の欄に地名を入れてください。':'';
       lb.innerHTML=`<div class="banner"><div><b>${msg}</b>${hm?` いまは出発地（${esc(state.home.address||'')}）から測っています。`:''}</div>
         ${st==='denied'?`<div class="small" style="margin-top:6px">${locHelp()}</div>`:''}
-        ${why?`<div class="small" style="margin-top:6px">${why}</div>`:''}${locErr&&st!=='asking'?`<div class="small muted" style="margin-top:4px">端末からの返事：${esc(locErr)}</div>`:''}
+        ${why?`<div class="small" style="margin-top:6px">${why}</div>`:''}${st!=='asking'?`<div class="small muted" id="locDiag" style="margin-top:6px">診断：${esc(locDiag())}</div>`:''}
         <div class="row"><button class="btn soft" id="locRetry">現在地を取る</button></div>
         <div class="small" style="margin-top:10px">位置情報を使わずに、地名から測ることもできます</div>
         <div class="datewrap"><input id="locPlace" placeholder="例：岐阜駅／名古屋市中区栄" autocomplete="off" enterkeyhint="search"><button class="btn soft" id="locPlaceGo">ここから測る</button></div></div>`;
