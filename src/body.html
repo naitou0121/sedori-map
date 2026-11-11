@@ -336,12 +336,12 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
   function locHelp(){
     const ua=navigator.userAgent||''; const ios=/iPhone|iPad|iPod/.test(ua)||(/Macintosh/.test(ua)&&navigator.maxTouchPoints>1);
     const standalone=window.navigator.standalone===true||(window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches);
-    const top='まず iPhone の「設定」→ プライバシーとセキュリティ → 位置情報サービス がオンになっているか確かめてください。';
+    const top='iPhone の「設定」→ プライバシーとセキュリティ → 位置情報サービス を開きます（一番上のスイッチがオンでも、下のアプリごとの行が「しない」だと取れません）。';
     const saf=`<div class="row" style="margin-top:8px"><a class="btn ok" href="x-safari-${location.href.split('#')[0]}">Safariで開く</a><button class="btn" type="button" onclick="navigator.clipboard&&navigator.clipboard.writeText(location.href.split('#')[0]).then(()=>{this.textContent='コピーしました'})">URLをコピー</button></div>`;
-    if(ios&&/CriOS/.test(ua)) return `Chrome がこのサイトの位置情報を止めています。<b>Safari で開くと使えます。</b>${saf}Chrome のまま使う時は、iPhone の「設定」→ アプリ → <b>Chrome</b> → 位置情報 →「<b>このAppの使用中</b>」にしてから、Chrome を一度終了して開き直してください。`;
+    if(ios&&/CriOS/.test(ua)) return `iPhone の「設定」→ プライバシーとセキュリティ → 位置情報サービス → アプリの一覧の「<b>Chrome</b>」→「<b>このAppの使用中</b>」を選ぶ。Chrome に戻って読み込み直し、「現在地を取る」を押してください。<br>Safari で開いても使えます。${saf}`;
     if(ios&&!/Safari/.test(ua.replace(/CriOS|FxiOS|EdgiOS/,''))||ios&&/FxiOS|EdgiOS|Line\/|Instagram|FBAN|FBAV/.test(ua)) return `このブラウザがこのサイトの位置情報を止めています。<b>Safari で開くと使えます。</b>${saf}`;
     if(ios&&standalone) return `${top}<br>次に同じ画面の一覧から「<b>SafariのWebサイト</b>」→「<b>このAppの使用中</b>」を選ぶ。アプリを開き直して「現在地を取る」を押してください。`;
-    if(ios) return `${top}<br>次に同じ画面の一覧から「<b>SafariのWebサイト</b>」→「<b>このAppの使用中</b>」を選ぶ。それでも出ない時は、アドレス欄の左のボタン → Webサイトの設定 → 位置情報 →「許可」。`;
+    if(ios) return `${top}<br>アプリの一覧を下へ進み「<b>SafariのWebサイト</b>」→「<b>このAppの使用中</b>」を選ぶ。Safari に戻って読み込み直し、「現在地を取る」を押すと確認が出るので「許可」。`;
     if(/Android/.test(ua)) return 'アドレス欄の左のマーク → 権限 → 位置情報 →「許可」を選ぶ。戻ってきて「現在地を取る」を押してください。';
     return 'アドレス欄の左のマークから、このサイトの位置情報を「許可」にしてください。';
   }
