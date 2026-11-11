@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="仕入れマップ">
 <meta name="theme-color" content="#8a5a2b">
-<meta name="app-version" content="202611111456">
+<meta name="app-version" content="202611111459">
 <link rel="manifest" href="./manifest.webmanifest">
 <link rel="apple-touch-icon" href="./icon-180.png">
 <link rel="icon" href="./icon-192.png">
@@ -470,7 +470,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
       <div class="row"><a class="btn soft" href="${mapsUrl(s)}" target="_blank" rel="noopener">Googleマップ</a>${s.url?`<a class="btn" href="${esc(s.url)}" target="_blank" rel="noopener">公式ページ</a>`:''}<button class="btn ${planned?'':'soft'}" id="shPlan">${planned?'予定から外す':'今日の予定に入れる'}</button></div>
       <div class="stats"><div class="stat"><div class="k">累計</div><div class="v">${vs.length}<span class="small muted"> 回</span></div></div><div class="stat"><div class="k">最終</div><div class="v">${last?fmtShort(last):'—'}</div><div class="small"><span class="tag ${g.cls}">${g.label}</span></div></div></div>
       <button class="btn ok big block" id="shToday" ${today?'disabled':''}>${today?'✓ 今日の訪問は記録済み':'今日行った'}</button>
-      ${s.tk?`<div class="hoursbox"><span class="tag tk">チケット可</span> ブックチケット（${esc(s.tk)}地域）が使える店です<div class="small muted" style="margin-top:2px">${ticketMeta&&ticketMeta.fetchedAt?`対象店は ${fmt(ticketMeta.fetchedAt)} 時点の公式ページより。変わることがあります`:''}</div></div>`:''}
+      ${s.tk?`<div class="hoursbox"><span class="tag tk">チケット可</span> ブックチケット（${esc(s.tk)}地域）が使える店です<div class="row" style="margin-top:8px"><a class="btn ok" href="${esc((ticketMeta&&ticketMeta.open)||'https://www.sub-ticket.jp/mypage/')}" target="_blank" rel="noopener">ブックチケットを開く</a>${ticketMeta&&ticketMeta.regions&&ticketMeta.regions[s.tk]?`<a class="btn" href="https://www.sub-ticket.jp/shop/branch/${esc(ticketMeta.regions[s.tk])}" target="_blank" rel="noopener">対象店の一覧（公式）</a>`:''}</div><div class="small muted" style="margin-top:6px">${ticketMeta&&ticketMeta.fetchedAt?`対象店は ${fmt(ticketMeta.fetchedAt)} 時点の公式ページより。変わることがあるので、気になる時は公式の一覧で確かめてください`:''}</div></div>`:''}
       <div class="hd"><h3>日付を選んで記録</h3></div><div class="datewrap"><input type="date" id="shDate" max="${t}" value="${t}"><button class="btn" id="shYest">昨日</button><button class="btn soft" id="shAddDate">この日に行った</button></div>
       <div class="hd"><h3>訪問履歴 ${vs.length}件</h3></div>${vs.length?`<div class="hist">${vs.map(v=>`<div class="hrow" data-vid="${v.id}"><span class="date">${fmt(v.date)}<span class="muted">（${dow(v.date)}）</span></span><span class="who"></span><button class="del ${confirmDel===v.id?'confirm':''}">${confirmDel===v.id?'本当に削除':'削除'}</button></div>`).join('')}</div>`:'<div class="empty" style="padding:12px">まだ記録がありません</div>'}
       <div class="hd" style="margin-top:20px"><h3>この店</h3></div><div class="row">${state.snooze[s.id]&&state.snooze[s.id]>t?`<button class="btn warn" id="shUnsnooze">寝かせ解除（${fmtShort(state.snooze[s.id])}まで）</button>`:`<button class="btn" id="shSnooze">1ヶ月寝かせる</button>`}<button class="btn ${hidden?'warn':'danger'}" id="shHide">${hidden?'表示に戻す':'もう行かない（非表示）'}</button>${!s.builtin?`<button class="btn danger" id="shDelCustom">この店を削除</button>`:''}</div>`;

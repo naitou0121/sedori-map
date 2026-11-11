@@ -46,7 +46,7 @@ if tf.exists():
         if not c: miss.append(x['pref']+' '+x['name']); continue
         for s in c: s['tk']=x['region']
         hit+=1
-    ticket_meta={'name':tj.get('name','ブックチケット'),'fetchedAt':tj.get('fetchedAt',''),'count':hit,'source':tj.get('source','')}
+    ticket_meta={'name':tj.get('name','ブックチケット'),'fetchedAt':tj.get('fetchedAt',''),'count':hit,'source':tj.get('source',''),'open':tj.get('open','https://www.sub-ticket.jp/mypage/'),'regions':{r['name']:r['id'] for r in tj.get('regions',[])}}
     print(f"  ブックチケット: {hit}/{len(tj['stores'])}店に印" + (f" ・ 合わなかった店 {miss}" if miss else ''))
 (root/'data/stores.json').write_text(json.dumps({'builtAt':datetime.date.today().isoformat(),'chains':chains,'count':len(stores),'ticket':ticket_meta,'stores':stores},ensure_ascii=False,separators=(',',':')))
 
