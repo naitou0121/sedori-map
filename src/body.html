@@ -268,7 +268,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
   function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){ storageOk=false; toast('保存できませんでした'); } }
   const defPrefs=()=>({books:true,radius:30,pref:'',chainsOff:[],ticket:false});
   let state=load()||{visits:[],custom:[],hidden:[],snooze:{},home:null,prefs:defPrefs(),plan:{date:todayStr(),items:[]}};
-  state.visits=state.visits||[]; state.tickets=state.tickets||[]; state.custom=state.custom||[]; state.hidden=state.hidden||[]; state.snooze=state.snooze||{}; state.prefs={...defPrefs(),...(state.prefs||{})}; state.prefs.chainsOff=state.prefs.chainsOff||[]; state.plan=state.plan||{date:todayStr(),items:[]};
+  state.visits=state.visits||[]; state.custom=state.custom||[]; state.hidden=state.hidden||[]; state.snooze=state.snooze||{}; state.prefs={...defPrefs(),...(state.prefs||{})}; state.prefs.chainsOff=state.prefs.chainsOff||[]; state.plan=state.plan||{date:todayStr(),items:[]};
 
   // ---- 店舗データ ----
   // data/stores.json は build.py が data/sources/*.json（チェーンごと）を合流させたもの。chains に各チェーンの名前・色・出どころが入る
@@ -289,14 +289,10 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
   const all=()=>[...stores,...state.custom];
   const byId=id=>all().find(s=>s.id===id);
   const visible=()=>all().filter(s=>!state.hidden.includes(s.id)&&chainOn(s)&&(!state.prefs.books||isBook(s))&&(!state.prefs.ticket||!!s.tk));
-  // ---- ブックチケット（対象店の印は data/ticket.json から。使った日は端末内）----
+  // ---- ブックチケット（対象店の印は data/ticket.json から）----
   const hasTicket=()=>!!ticketMeta&&stores.some(s=>s.tk);
-  const tkOf=id=>state.tickets.filter(t=>t.storeId===id).map(t=>t.date).sort().reverse();
-  const tkMonth=id=>tkOf(id).filter(d=>d.slice(0,7)===todayStr().slice(0,7));
-  const tkMonthAll=()=>state.tickets.filter(t=>t.date.slice(0,7)===todayStr().slice(0,7)&&byId(t.storeId)).length;
-  const ticketTag=s=>{ if(!s.tk) return ''; const m=tkMonth(s.id); return m.length?`<span class="tag today">今月${m.map(fmtShort).join('・')}にチケット使用</span>`:'<span class="tag tk">チケット可</span>'; };
+  const ticketTag=s=>s.tk?'<span class="tag tk">チケット可</span>':'';
   const ticketChip=()=>hasTicket()?`<button class="chip" data-k="tk:1" aria-pressed="${String(!!state.prefs.ticket)}">チケットが使える店</button>`:'';
-  function toggleTicketUse(id){ const t=todayStr(); const i=state.tickets.findIndex(x=>x.storeId===id&&x.date===t); if(i>=0){ state.tickets.splice(i,1); toast('今日のチケット使用を取り消しました'); } else { state.tickets.push({storeId:id,date:t,createdAt:Date.now()}); toast('今日チケットを使ったと記録しました'); } save(); render(); }
   const visitsOf=id=>state.visits.filter(v=>v.storeId===id).sort((a,b)=>b.date.localeCompare(a.date)||b.createdAt-a.createdAt);
   const lastVisit=id=>visitsOf(id)[0]?.date||null;
   const visitedToday=id=>state.visits.some(v=>v.storeId===id&&v.date===todayStr());
@@ -443,7 +439,7 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
   $('#btnBulkAdd').addEventListener('click',async()=>{ const b=$('#btnBulkAdd'), msg=$('#bulkMsg'); const lines=$('#bulkText').value.split(/\n/).map(l=>l.trim()).filter(Boolean); if(!lines.length){ msg.textContent='1行も入っていません'; return; } b.disabled=true; let ok=0; const bad=[]; for(let i=0;i<lines.length;i++){ msg.textContent=`${i+1}/${lines.length} 位置を取得中…`; const [name,address,hours,brand]=lines[i].split(/[,，\t]/).map(x=>(x||'').trim()); if(!name||!address){ bad.push(lines[i]); continue; } if(state.custom.some(s=>s.name===name&&s.address===address)){ continue; } const s=await makeCustom(name,address,hours,brand); if(s){ state.custom.push(s); ok++; save(); } else bad.push(lines[i]); await new Promise(r=>setTimeout(r,600)); } b.disabled=false; $('#bulkText').value=bad.join('\n'); msg.textContent=`${ok}店を追加しました${bad.length?`。${bad.length}行は位置が取れず残しました（住所を直して再実行）`:''}`; toast(`${ok}店を追加しました`); renderSettings(); });
   $('#btnExport').addEventListener('click',()=>{ const ta=$('#exportText'); ta.value=JSON.stringify({app:'sedori-map',v:1,exportedAt:new Date().toISOString(),...state}); ta.hidden=false; $('#btnCopyExport').hidden=false; ta.focus(); ta.select(); });
   $('#btnCopyExport').addEventListener('click',()=>{ const ta=$('#exportText'); const ok=()=>toast('コピーしました'); if(navigator.clipboard?.writeText) navigator.clipboard.writeText(ta.value).then(ok).catch(()=>{ ta.select(); toast('全選択しました。長押しでコピー'); }); else { ta.select(); toast('全選択しました。長押しでコピー'); } });
-  let restoreArmed=false; $('#btnRestore').addEventListener('click',()=>{ const msg=$('#restoreMsg'); let d; try{ d=JSON.parse($('#restoreText').value); }catch(e){ msg.textContent='読み取れませんでした。'; return; } if(!d||!Array.isArray(d.visits)){ msg.textContent='このアプリの控えではないようです。'; return; } if(!restoreArmed){ restoreArmed=true; msg.textContent=`訪問記録${d.visits.length}件で今の内容（${state.visits.length}件）を置き換えます。もう一度押すと実行。`; setTimeout(()=>{ restoreArmed=false; },6000); return; } state={visits:d.visits,tickets:d.tickets||[],custom:d.custom||[],hidden:d.hidden||[],snooze:d.snooze||{},home:d.home||null,prefs:{...defPrefs(),...(d.prefs||{})},plan:d.plan||{date:todayStr(),items:[]}}; state.prefs.chainsOff=state.prefs.chainsOff||[]; save(); restoreArmed=false; msg.textContent='戻しました。'; $('#restoreText').value=''; render(); });
+  let restoreArmed=false; $('#btnRestore').addEventListener('click',()=>{ const msg=$('#restoreMsg'); let d; try{ d=JSON.parse($('#restoreText').value); }catch(e){ msg.textContent='読み取れませんでした。'; return; } if(!d||!Array.isArray(d.visits)){ msg.textContent='このアプリの控えではないようです。'; return; } if(!restoreArmed){ restoreArmed=true; msg.textContent=`訪問記録${d.visits.length}件で今の内容（${state.visits.length}件）を置き換えます。もう一度押すと実行。`; setTimeout(()=>{ restoreArmed=false; },6000); return; } state={visits:d.visits,custom:d.custom||[],hidden:d.hidden||[],snooze:d.snooze||{},home:d.home||null,prefs:{...defPrefs(),...(d.prefs||{})},plan:d.plan||{date:todayStr(),items:[]}}; state.prefs.chainsOff=state.prefs.chainsOff||[]; save(); restoreArmed=false; msg.textContent='戻しました。'; $('#restoreText').value=''; render(); });
   $('#btnCheckUpdate').addEventListener('click',async()=>{ try{ const r=await navigator.serviceWorker?.getRegistration(); if(r){ await r.update(); toast(r.waiting||r.installing?'新しい版を取り込み中':'この版が最新です'); } else toast('ブラウザ表示です'); }catch(e){ toast('確認できませんでした'); } });
 
   // ---- 詳細シート ----
@@ -460,12 +456,11 @@ h1,h2,h3{margin:0;text-wrap:balance;font-weight:700}
       <div class="row"><a class="btn soft" href="${mapsUrl(s)}" target="_blank" rel="noopener">Googleマップ</a>${s.url?`<a class="btn" href="${esc(s.url)}" target="_blank" rel="noopener">公式ページ</a>`:''}<button class="btn ${planned?'':'soft'}" id="shPlan">${planned?'予定から外す':'今日の予定に入れる'}</button></div>
       <div class="stats"><div class="stat"><div class="k">累計</div><div class="v">${vs.length}<span class="small muted"> 回</span></div></div><div class="stat"><div class="k">最終</div><div class="v">${last?fmtShort(last):'—'}</div><div class="small"><span class="tag ${g.cls}">${g.label}</span></div></div></div>
       <button class="btn ok big block" id="shToday" ${today?'disabled':''}>${today?'✓ 今日の訪問は記録済み':'今日行った'}</button>
-      ${s.tk?`<div class="hd"><h3>ブックチケット（${esc(s.tk)}地域の対象店）</h3></div><div class="row"><button class="btn ${tkMonth(s.id).includes(t)?'':'soft'}" id="shTk">${tkMonth(s.id).includes(t)?'今日の使用を取り消す':'今日チケットを使った'}</button></div><div class="small muted" style="margin-top:4px">${tkOf(s.id).length?`この店で使った日：${tkOf(s.id).slice(0,6).map(fmt).join('、')}`:'この店ではまだ使っていません'} ・ 今月は全部で${tkMonthAll()}回${ticketMeta&&ticketMeta.fetchedAt?` ・ 対象店は ${fmt(ticketMeta.fetchedAt)} 時点`:''}</div>`:''}
+      ${s.tk?`<div class="hoursbox"><span class="tag tk">チケット可</span> ブックチケット（${esc(s.tk)}地域）が使える店です<div class="small muted" style="margin-top:2px">${ticketMeta&&ticketMeta.fetchedAt?`対象店は ${fmt(ticketMeta.fetchedAt)} 時点の公式ページより。変わることがあります`:''}</div></div>`:''}
       <div class="hd"><h3>日付を選んで記録</h3></div><div class="datewrap"><input type="date" id="shDate" max="${t}" value="${t}"><button class="btn" id="shYest">昨日</button><button class="btn soft" id="shAddDate">この日に行った</button></div>
       <div class="hd"><h3>訪問履歴 ${vs.length}件</h3></div>${vs.length?`<div class="hist">${vs.map(v=>`<div class="hrow" data-vid="${v.id}"><span class="date">${fmt(v.date)}<span class="muted">（${dow(v.date)}）</span></span><span class="who"></span><button class="del ${confirmDel===v.id?'confirm':''}">${confirmDel===v.id?'本当に削除':'削除'}</button></div>`).join('')}</div>`:'<div class="empty" style="padding:12px">まだ記録がありません</div>'}
       <div class="hd" style="margin-top:20px"><h3>この店</h3></div><div class="row">${state.snooze[s.id]&&state.snooze[s.id]>t?`<button class="btn warn" id="shUnsnooze">寝かせ解除（${fmtShort(state.snooze[s.id])}まで）</button>`:`<button class="btn" id="shSnooze">1ヶ月寝かせる</button>`}<button class="btn ${hidden?'warn':'danger'}" id="shHide">${hidden?'表示に戻す':'もう行かない（非表示）'}</button>${!s.builtin?`<button class="btn danger" id="shDelCustom">この店を削除</button>`:''}</div>`;
     $('#shToday').addEventListener('click',()=>{ if(recordVisit(s.id)) renderSheet(); });
-    const tkb=$('#shTk'); if(tkb) tkb.addEventListener('click',()=>{ toggleTicketUse(s.id); renderSheet(); });
     $('#shYest').addEventListener('click',()=>{ const y=new Date(); y.setDate(y.getDate()-1); $('#shDate').value=ymd(y); });
     $('#shAddDate').addEventListener('click',()=>{ const d=$('#shDate').value; if(!d||d>t) return; if(recordVisit(s.id,d)) renderSheet(); });
     $('#shPlan').addEventListener('click',()=>{ togglePlan(s.id); renderSheet(); render(); });
